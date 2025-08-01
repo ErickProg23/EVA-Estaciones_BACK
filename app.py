@@ -4,6 +4,9 @@ from flask_cors import CORS
 from models import db, Usuario
 from config import Config
 from routes.usuarios import usuarios_bp
+from routes.estaciones import estacion_bp
+from routes.rol import rol_bp
+from routes.puestos import puestos_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -11,6 +14,9 @@ db.init_app(app)
 CORS(app, origins=["http://localhost:8080"])  # Puerto de Vue
 
 app.register_blueprint(usuarios_bp)
+app.register_blueprint(estacion_bp)
+app.register_blueprint(rol_bp)
+app.register_blueprint(puestos_bp)
 
 if __name__ == '__main__':
     with app.app_context():

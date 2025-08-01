@@ -7,16 +7,23 @@ db = SQLAlchemy()
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario = db.Column(db.String(80), nullable=False)
+    nombre = db.Column(db.String(100), nullable=False)
     password = db.Column(db.String(128), nullable=False)
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
     rol_id = db.Column(db.Integer, db.ForeignKey('rol.id'))
     activo = db.Column(db.Boolean, default=True)
 
-    def __init__(self, usuario, password, estacion_id, rol_id):
+    #Relaciones
+    rol = db.relationship('Rol', backref='usuarios')
+    estacion = db.relationship('Estacion', backref='usuarios')
+
+    def __init__(self, usuario, password, estacion_id, rol_id, nombre, activo):
         self.usuario = usuario
-        self.set_password(password)
+        self.password = password
         self.estacion_id = estacion_id
         self.rol_id = rol_id
+        self.nombre = nombre
+        self.activo = activo
 
 class Rol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
