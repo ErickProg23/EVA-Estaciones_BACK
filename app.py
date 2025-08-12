@@ -8,6 +8,8 @@ from routes.estaciones import estacion_bp
 from routes.rol import rol_bp
 from routes.puestos import puestos_bp
 from routes.personal import personal_bp
+from routes.aspectos import aspecto_bp
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -19,6 +21,8 @@ app.register_blueprint(estacion_bp)
 app.register_blueprint(rol_bp)
 app.register_blueprint(puestos_bp)
 app.register_blueprint(personal_bp)
+app.register_blueprint(aspecto_bp)
+
 
 if __name__ == '__main__':
     with app.app_context():

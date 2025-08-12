@@ -51,6 +51,9 @@ class Puesto(db.Model):
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
     activo = db.Column(db.Boolean, default=True)
 
+    puesto_aspectos = db.relationship('PuestoAspecto', backref='puesto')
+
+
     def __init__(self, nombre, estacion_id, activo=True):
         self.nombre = nombre
         self.estacion_id = estacion_id
@@ -59,15 +62,31 @@ class Puesto(db.Model):
 class Aspecto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
-    peso = db.Column(db.Integer, nullable=False)
-    tipo = db.Column(db.Integer, nullable=False)
     activo = db.Column(db.Boolean, default=True)
 
-    def __init__(self, nombre, peso, tipo, activo=True):
+    aspecto_puestos = db.relationship('PuestoAspecto', backref='aspecto')
+
+
+    def __init__(self, nombre, activo=True):
         self.nombre = nombre
-        self.peso = peso
-        self.tipo = tipo
         self.activo = activo
+
+class PuestoAspecto(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    puesto_id = db.Column(db.Integer, db.ForeignKey('puesto.id'))
+    aspecto_id = db.Column(db.Integer, db.ForeignKey('aspecto.id'))
+    peso = db.Column(db.Integer, nullable=False)
+
+
+    def __init__(self, puesto_id, aspecto_id, peso):
+        self.puesto_id = puesto_id
+        self.aspecto_id = aspecto_id
+        self.peso = peso
+
+    __table_args__ = (
+        db.UniqueConstraint('puesto_id', 'aspecto_id', name='uq_puesto_aspecto'),
+    )
+
 
 class Notificacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
