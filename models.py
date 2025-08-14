@@ -105,19 +105,17 @@ class Empleado(db.Model):
     puesto_id = db.Column(db.Integer, db.ForeignKey('puesto.id'))
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
     num_empleado = db.Column(db.Integer, nullable=False)
-    tipo_evaluacion = db.Column(db.Integer, nullable=False)
     activo = db.Column(db.Boolean, default=True)
 
     #Relaciones
     puesto = db.relationship('Puesto', backref='empleados')
     estacion = db.relationship('Estacion', backref='empleados')
 
-    def __init__(self, nombre, puesto_id, estacion_id, num_empleado, tipo_evaluacion, activo=True):
+    def __init__(self, nombre, puesto_id, estacion_id, num_empleado, activo=True):
         self.nombre = nombre
         self.puesto_id = puesto_id
         self.estacion_id = estacion_id
         self.num_empleado = num_empleado
-        self.tipo_evaluacion = tipo_evaluacion
         self.activo = activo
 
 class Evaluacion(db.Model):

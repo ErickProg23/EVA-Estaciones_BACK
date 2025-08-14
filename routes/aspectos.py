@@ -159,3 +159,69 @@ def update_peso_aspecto_puesto():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Error al procesar el peso', 'error': str(e)}), 500
+
+
+@aspecto_bp.route('/api/getAspectosPorPuestoEspecifico/<int:puesto_id>', methods=['GET'])
+def get_aspectos_por_puesto_especifico(puesto_id):
+    """Obtiene los aspectos de un puesto específico"""
+    try:
+        # Verificar que el puesto existe
+        puesto = Puesto.query.get(puesto_id)
+        if not puesto:
+            return jsonify({
+                'success': False,
+                'message': 'Puesto no encontrado'
+            }), 404
+        
+        if not puesto.activo:
+            return jsonify({
+                'success': False,
+                'message': 'Puesto inactivo'
+            }), 400
+        
+        # Obtener aspectos del puesto específico
+        aspectos_puesto = db.session.query(
+            Aspecto.id.label('aspecto_id'),
+            Aspecto.nombre.label('aspecto_nombre'),
+            PuestoAspecto.peso.label('peso'),
+            Aspecto.activo.label('aspecto_activo')
+        ).join(
+            PuestoAspecto, Aspecto.id == PuestoAspecto.aspecto_id
+        ).filter(
+            PuestoAspecto.puesto_id == puesto_id,
+            Aspecto.activo == True
+        ).order_by(
+            Aspecto.nombre
+        ).all()
+        
+        aspectos_list = []
+        suma_pesos = 0
+        
+        for row in aspectos_puesto:
+            aspecto_info = {
+                'aspecto_id': row.aspecto_id,
+                'aspecto_nombre': row.aspecto_nombre,
+                'peso': row.peso,
+                'activo': row.aspecto_activo
+            }
+            aspectos_list.append(aspecto_info)
+            suma_pesos += row.peso
+        
+        return jsonify({
+            'success': True,
+            'puesto': {
+                'id': puesto.id,
+                'nombre': puesto.nombre,
+                'estacion_id': puesto.estacion_id
+            },
+            'total_aspectos': len(aspectos_list),
+            'suma_pesos': suma_pesos,
+            'aspectos': aspectos_list
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Error al obtener aspectos del puesto',
+            'error': str(e)
+        }), 500

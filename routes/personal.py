@@ -18,7 +18,6 @@ def getPersonal():
                 'estacion_id': p.estacion_id,
                 'estacion': p.estacion.nombre if p.estacion else None,
                 'num_empleado': p.num_empleado,
-                'tipo_evaluacion': p.tipo_evaluacion,
                 'activo': p.activo,
             })
         return jsonify(personal_list)
@@ -33,10 +32,9 @@ def newPersonal():
         puesto_id = data.get('puesto_id')
         estacion_id = data.get('estacion_id')
         num_empleado = data.get('num_empleado')
-        tipo_evaluacion = data.get('tipo_evaluacion')
         activo = data.get('activo', True)
         
-        if not all([nombre, puesto_id, estacion_id, num_empleado, tipo_evaluacion]):
+        if not all([nombre, puesto_id, estacion_id, num_empleado]):
             return jsonify({'success': False, 'message': 'Faltan datos'}), 400
         
         # Verificar que no exista un empleado con el mismo nombre
@@ -49,7 +47,7 @@ def newPersonal():
         if empleado_existente_num:
             return jsonify({'success': False, 'message': 'Ya existe un empleado con ese número de empleado'}), 400
         
-        personal = Empleado(nombre=nombre, puesto_id=puesto_id, estacion_id=estacion_id, num_empleado=num_empleado, tipo_evaluacion=tipo_evaluacion, activo=activo)
+        personal = Empleado(nombre=nombre, puesto_id=puesto_id, estacion_id=estacion_id, num_empleado=num_empleado, activo=activo)
         db.session.add(personal)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Empleado agregado exitosamente'}), 201
@@ -64,10 +62,9 @@ def updateEmpleado(id):
         puesto_id = data.get('puesto_id')
         estacion_id = data.get('estacion_id')
         num_empleado = data.get('num_empleado')
-        tipo_evaluacion = data.get('tipo_evaluacion')
         activo = data.get('activo', True)
         
-        if not all([nombre, puesto_id, estacion_id, num_empleado, tipo_evaluacion]):
+        if not all([nombre, puesto_id, estacion_id, num_empleado]):
             return jsonify({'success': False, 'message': 'Faltan datos'}), 400
         
         # Verificar que el empleado a editar existe
@@ -89,7 +86,6 @@ def updateEmpleado(id):
         personal.puesto_id = puesto_id
         personal.estacion_id = estacion_id
         personal.num_empleado = num_empleado
-        personal.tipo_evaluacion = tipo_evaluacion
         personal.activo = activo
         db.session.commit()
         return jsonify({'success': True, 'message': 'Empleado actualizado exitosamente'})

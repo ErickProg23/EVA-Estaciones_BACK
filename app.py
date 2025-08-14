@@ -9,6 +9,8 @@ from routes.rol import rol_bp
 from routes.puestos import puestos_bp
 from routes.personal import personal_bp
 from routes.aspectos import aspecto_bp
+from routes.evaluacion import evaluacion_bp
+
 
 
 app = Flask(__name__)
@@ -22,6 +24,8 @@ app.register_blueprint(rol_bp)
 app.register_blueprint(puestos_bp)
 app.register_blueprint(personal_bp)
 app.register_blueprint(aspecto_bp)
+app.register_blueprint(evaluacion_bp)
+
 
 
 if __name__ == '__main__':

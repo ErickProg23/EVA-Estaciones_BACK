@@ -24,7 +24,8 @@ def login():
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }, SECRET_KEY, algorithm='HS256')
 
-        return jsonify({'success': True, 'message': 'Login exitoso', 'token': token, 'estacion_id': usuario.estacion_id, 'rol_id': usuario.rol_id})
+        return jsonify({'success': True, 'message': 'Login exitoso', 'token': token, 'estacion_id': usuario.estacion_id, 'rol_id': usuario.rol_id, 'usuario_id': usuario.id})
+
     else:
         return jsonify({'success': False, 'message': 'Credenciales incorrectas'}), 401
 
