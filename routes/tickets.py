@@ -20,7 +20,6 @@ def get_tickets():
             Ticket.creador_id,
             Ticket.asignado_id,
             Usuario.nombre.label('creador_nombre'),
-            Usuario.email.label('creador_email')
         ).outerjoin(
             Usuario, Ticket.creador_id == Usuario.id
         ).order_by(
@@ -45,7 +44,6 @@ def get_tickets():
                 'creador': {
                     'id': ticket.creador_id,
                     'nombre': ticket.creador_nombre,
-                    'email': ticket.creador_email
                 },
                 'asignado': {
                     'id': ticket.asignado_id,
@@ -151,7 +149,18 @@ def create_ticket():
         titulo = data.get('titulo')
         descripcion = data.get('descripcion')
         creador_id = data.get('creador_id')
-        prioridad = data.get('prioridad', 1)  # 1=baja, 2=media, 3=alta
+        prioridad_input = data.get('prioridad', 1)  # Puede ser string o int
+        
+        # Convertir prioridad de string a int si es necesario
+        if isinstance(prioridad_input, str):
+            prioridad_map = {
+                'baja': 1,
+                'media': 2,
+                'alta': 3
+            }
+            prioridad = prioridad_map.get(prioridad_input.lower(), 1)
+        else:
+            prioridad = prioridad_input if prioridad_input in [1, 2, 3] else 1
         
         if not all([titulo, descripcion, creador_id]):
             return jsonify({
@@ -167,12 +176,20 @@ def create_ticket():
                 'message': 'Usuario creador no encontrado o inactivo'
             }), 404
         
+        # Asignar automáticamente al usuario con ID 1 si no se especifica asignado
+        asignado_id = data.get('asignado_id')
+        if not asignado_id:
+            # Verificar que el usuario con ID 1 existe y está activo
+            usuario_admin = Usuario.query.get(1)
+            if usuario_admin and usuario_admin.activo:
+                asignado_id = 1
+        
         # Crear nuevo ticket
         nuevo_ticket = Ticket(
             titulo=titulo,
             descripcion=descripcion,
             creador_id=creador_id,
-            asignado_id=data.get('asignado_id'),  # Opcional
+            asignado_id=asignado_id,
             estado=1,  # 1=abierto por defecto
             prioridad=prioridad,
             fecha_creacion=datetime.now(),
@@ -232,7 +249,6 @@ def get_ticket_by_id(ticket_id):
             'creador': {
                 'id': ticket.creador_id,
                 'nombre': creador.nombre if creador else 'Usuario eliminado',
-                'email': creador.email if creador else None
             },
             'asignado': {
                 'id': ticket.asignado_id,
@@ -495,6 +511,4 @@ def delete_ticket(ticket_id):
             'message': 'Error al eliminar ticket',
             'error': str(e)
         }), 500
-
-
 
