@@ -127,8 +127,10 @@ class Evaluacion(db.Model):
     calificacion_final = db.Column(db.Float, nullable=False)
     porcentaje_final = db.Column(db.Float, nullable=False)
     comentario = db.Column(db.Text, nullable=True)
+    faltas = db.Column(db.Integer, nullable=False, default=0)
+    incapacidad = db.Column(db.Integer, nullable=False, default=0)
 
-    def __init__(self, empleado_id, mes, anio, fecha_evaluacion, calificacion_final, porcentaje_final, comentario):
+    def __init__(self, empleado_id, mes, anio, fecha_evaluacion, calificacion_final, porcentaje_final, comentario, faltas=0, incapacidad=0):
         self.empleado_id = empleado_id
         self.mes = mes
         self.anio = anio
@@ -136,6 +138,8 @@ class Evaluacion(db.Model):
         self.calificacion_final = calificacion_final
         self.porcentaje_final = porcentaje_final
         self.comentario = comentario
+        self.faltas = faltas        
+        self.incapacidad = incapacidad
 
 class Detalle_Evaluacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -168,4 +172,16 @@ class Ticket(db.Model):
         self.prioridad = prioridad
         self.fecha_creacion = fecha_creacion
 
+class Producto(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    precio = db.Column(db.Float, nullable=False)
+    estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
+    activo = db.Column(db.Boolean, default=True)
+
+    def __init__(self, nombre, precio, estacion_id, activo=True):
+        self.nombre = nombre
+        self.precio = precio
+        self.estacion_id = estacion_id
+        self.activo = activo
 

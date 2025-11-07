@@ -31,13 +31,15 @@ def get_aspectos_by_puesto(puesto_id):
         
         aspectos_list = []
         for aspecto, puesto_aspecto in aspectos_puesto:
+            # Omitir aspectos que no tienen peso asignado para este puesto
+            if puesto_aspecto is None:
+                continue
             aspectos_list.append({
                 'id': aspecto.id,
                 'nombre': aspecto.nombre,
-                # Removido 'tipo'
-                'peso': puesto_aspecto.peso if puesto_aspecto else 0,
+                'peso': puesto_aspecto.peso,
                 'activo': aspecto.activo,
-                'tiene_peso_asignado': puesto_aspecto is not None
+                'tiene_peso_asignado': True
             })
         return jsonify(aspectos_list), 200
     except Exception as e:

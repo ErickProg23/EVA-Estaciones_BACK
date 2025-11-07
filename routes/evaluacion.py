@@ -188,18 +188,19 @@ def finalizar_evaluacion_puesto():
     try:
         data = request.get_json()
         
-        # Validar datos requeridos
+        # Validar datos requeridos (sin fecha_finalizacion: se usa la del servidor)
         usuario_id = data.get('usuario_id')
         puesto_id = data.get('puesto_id')
         evaluaciones = data.get('evaluaciones', {})
         comentarios = data.get('comentarios', {})
-        fecha_finalizacion = data.get('fecha_finalizacion')
         es_borrador = data.get('es_borrador', False)
+        faltas = data.get('faltas', 0)
+        incapacidad = data.get('incapacidad', 0)
         
-        if not all([usuario_id, puesto_id, evaluaciones, fecha_finalizacion]):
+        if not all([usuario_id, puesto_id, evaluaciones]):
             return jsonify({
                 'success': False,
-                'message': 'Faltan datos requeridos: usuario_id, puesto_id, evaluaciones, fecha_finalizacion'
+                'message': 'Faltan datos requeridos: usuario_id, puesto_id, evaluaciones'
             }), 400
         
         if es_borrador:
@@ -208,25 +209,8 @@ def finalizar_evaluacion_puesto():
                 'message': 'No se pueden finalizar evaluaciones marcadas como borrador'
             }), 400
         
-        # Convertir fecha
-        try:
-            # Manejar diferentes formatos de fecha
-            if fecha_finalizacion.endswith('Z'):
-                # Formato ISO con Z
-                fecha_evaluacion = datetime.fromisoformat(fecha_finalizacion.replace('Z', '+00:00'))
-            elif '+' in fecha_finalizacion or fecha_finalizacion.endswith('00:00'):
-                # Formato ISO con timezone
-                fecha_evaluacion = datetime.fromisoformat(fecha_finalizacion)
-            else:
-                # Formato sin timezone, asumir UTC
-                fecha_evaluacion = datetime.fromisoformat(fecha_finalizacion)
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'message': f'Formato de fecha inválido: {fecha_finalizacion}. Error: {str(e)}'
-            }), 400
-        
-        # Extraer mes y año de la fecha
+        # Establecer fecha de evaluación en backend (hora del servidor)
+        fecha_evaluacion = datetime.now()
         mes = fecha_evaluacion.month
         anio = fecha_evaluacion.year
         
@@ -238,31 +222,19 @@ def finalizar_evaluacion_puesto():
                 'message': 'Puesto no encontrado o inactivo'
             }), 404
         
-        # Obtener aspectos del puesto
-        aspectos_puesto = db.session.query(
-            Aspecto.id.label('aspecto_id'),
-            Aspecto.nombre.label('aspecto_nombre'),
-            PuestoAspecto.peso.label('peso')
-        ).join(
-            PuestoAspecto, Aspecto.id == PuestoAspecto.aspecto_id
-        ).filter(
-            PuestoAspecto.puesto_id == puesto_id,
-            Aspecto.activo == True
-        ).all()
+        # Detectar formato: evaluación para un solo empleado con lista de aspectos (tal cual se envía desde front)
+        empleado_id_global = data.get('empleado_id')
+        es_lista_de_aspectos_un_empleado = (
+            isinstance(evaluaciones, list) and
+            len(evaluaciones) > 0 and
+            isinstance(evaluaciones[0], dict) and
+            ('aspecto_id' in evaluaciones[0]) and
+            ('calificacion' in evaluaciones[0])
+        )
         
-        if not aspectos_puesto:
-            return jsonify({
-                'success': False,
-                'message': 'No se encontraron aspectos configurados para este puesto'
-            }), 400
-        
-        aspectos_puesto_dict = {str(asp.aspecto_id): {'nombre': asp.aspecto_nombre, 'peso': asp.peso} for asp in aspectos_puesto}
-        
-        evaluaciones_guardadas = []
-        
-        # Procesar cada empleado
-        for empleado_id_str, aspectos_calificaciones in evaluaciones.items():
-            empleado_id = int(empleado_id_str)
+        if es_lista_de_aspectos_un_empleado and empleado_id_global is not None:
+            # Usar todo tal cual viene del front: lista de aspectos con calificacion y peso
+            empleado_id = int(empleado_id_global)
             
             # Verificar que el empleado existe y pertenece al puesto
             empleado = Empleado.query.filter_by(
@@ -270,7 +242,6 @@ def finalizar_evaluacion_puesto():
                 puesto_id=puesto_id,
                 activo=True
             ).first()
-            
             if not empleado:
                 return jsonify({
                     'success': False,
@@ -283,60 +254,60 @@ def finalizar_evaluacion_puesto():
                 mes=mes,
                 anio=anio
             ).first()
-            
             if evaluacion_existente:
                 return jsonify({
                     'success': False,
                     'message': f'Ya existe una evaluación para el empleado {empleado.nombre} en {mes}/{anio}'
                 }), 409
             
-            # Validar aspectos y calcular calificación final
-            suma_calificaciones_ponderadas = 0
-            suma_pesos = 0
+            # Calcular con los datos tal cual vienen del front
+            suma_calificaciones_ponderadas = 0.0
+            suma_pesos = 0.0
             aspectos_evaluados = []
             
-            for aspecto_id_str, calificacion in aspectos_calificaciones.items():
-                if aspecto_id_str not in aspectos_puesto_dict:
+            for item in evaluaciones:
+                try:
+                    aspecto_id = int(item.get('aspecto_id'))
+                    cal = float(item.get('calificacion'))
+                    peso = float(item.get('peso'))
+                except Exception:
                     return jsonify({
                         'success': False,
-                        'message': f'El aspecto {aspecto_id_str} no pertenece al puesto'
+                        'message': 'Formato inválido en evaluaciones: asegúrate de enviar aspecto_id, calificacion y peso numéricos'
                     }), 400
                 
-                if not (1 <= calificacion <= 10):
+                # Escala normalizada a 1–5
+                if not (0 <= cal <= 5):
                     return jsonify({
                         'success': False,
-                        'message': f'Calificación inválida para empleado {empleado.nombre}, aspecto {aspecto_id_str}'
+                        'message': f'Calificación inválida para empleado {empleado.nombre}, aspecto {aspecto_id}. Escala permitida 1–5.'
+                    }), 400
+                if peso <= 0:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Peso inválido para aspecto {aspecto_id}. Debe ser mayor que 0.'
                     }), 400
                 
-                peso = aspectos_puesto_dict[aspecto_id_str]['peso']
-                suma_calificaciones_ponderadas += calificacion * peso
+                suma_calificaciones_ponderadas += cal * peso
                 suma_pesos += peso
-                
                 aspectos_evaluados.append({
-                    'aspecto_id': int(aspecto_id_str),
-                    'calificacion': calificacion
+                    'aspecto_id': aspecto_id,
+                    'calificacion': cal
                 })
-            
-            # Verificar que se evaluaron todos los aspectos del puesto
-            aspectos_faltantes = set(aspectos_puesto_dict.keys()) - set(aspectos_calificaciones.keys())
-            if aspectos_faltantes:
-                return jsonify({
-                    'success': False,
-                    'message': f'Faltan aspectos por evaluar para {empleado.nombre}: {aspectos_faltantes}'
-                }), 400
             
             if suma_pesos == 0:
                 return jsonify({
                     'success': False,
-                    'message': 'Error en configuración de pesos'
-                }), 500
+                    'message': 'Suma de pesos es 0. Verifica los pesos enviados.'
+                }), 400
             
             calificacion_final = suma_calificaciones_ponderadas / suma_pesos
-            porcentaje_final = (calificacion_final / 10) * 100
+            porcentaje_final = (calificacion_final / 5) * 100
+            
+            # Comentario como string directo
+            comentario_empleado = comentarios if isinstance(comentarios, str) else ''
             
             # Crear evaluación
-            comentario_empleado = comentarios.get(empleado_id_str, '')
-            
             nueva_evaluacion = Evaluacion(
                 empleado_id=empleado_id,
                 mes=mes,
@@ -344,13 +315,14 @@ def finalizar_evaluacion_puesto():
                 fecha_evaluacion=fecha_evaluacion,
                 calificacion_final=round(calificacion_final, 2),
                 porcentaje_final=round(porcentaje_final, 2),
-                comentario=comentario_empleado
+                comentario=comentario_empleado,
+                faltas=faltas,
+                incapacidad=incapacidad
             )
-            
             db.session.add(nueva_evaluacion)
             db.session.flush()
             
-            # Crear detalles de evaluación
+            # Crear detalles de evaluación (calificación por aspecto)
             for aspecto_eval in aspectos_evaluados:
                 detalle = Detalle_Evaluacion(
                     evaluacion_id=nueva_evaluacion.id,
@@ -359,27 +331,25 @@ def finalizar_evaluacion_puesto():
                 )
                 db.session.add(detalle)
             
-            evaluaciones_guardadas.append({
-                'empleado_id': empleado_id,
-                'empleado_nombre': empleado.nombre,
-                'calificacion_final': nueva_evaluacion.calificacion_final,
-                'porcentaje_final': nueva_evaluacion.porcentaje_final,
-                'comentario': comentario_empleado,
-                'aspectos_evaluados': len(aspectos_evaluados)
-            })
-        
-        # Confirmar transacción
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Se guardaron {len(evaluaciones_guardadas)} evaluaciones exitosamente',
-            'evaluaciones': evaluaciones_guardadas,
-            'puesto_nombre': puesto.nombre,
-            'mes': mes,
-            'anio': anio,
-            'fecha_evaluacion': fecha_evaluacion.isoformat()
-        }), 201
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Se guardó 1 evaluación exitosamente',
+                'evaluaciones': [{
+                    'empleado_id': empleado_id,
+                    'empleado_nombre': empleado.nombre,
+                    'calificacion_final': nueva_evaluacion.calificacion_final,
+                    'porcentaje_final': nueva_evaluacion.porcentaje_final,
+                    'comentario': comentario_empleado,
+                    'aspectos_evaluados': len(aspectos_evaluados),
+                    'faltas': faltas,
+                    'incapacidad': incapacidad
+                }],
+                'puesto_nombre': puesto.nombre,
+                'mes': mes,
+                'anio': anio,
+                'fecha_evaluacion': fecha_evaluacion.isoformat()
+            }), 201
         
     except Exception as e:
         db.session.rollback()

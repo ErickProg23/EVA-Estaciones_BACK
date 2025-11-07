@@ -37,13 +37,13 @@ def newPersonal():
         if not all([nombre, puesto_id, estacion_id, num_empleado]):
             return jsonify({'success': False, 'message': 'Faltan datos'}), 400
         
-        # Verificar que no exista un empleado con el mismo nombre
-        empleado_existente_nombre = Empleado.query.filter_by(nombre=nombre).first()
+         # Verificar que no exista un empleado con el mismo nombre
+        empleado_existente_nombre = Empleado.query.filter_by(nombre=nombre, estacion_id=estacion_id).first()
         if empleado_existente_nombre:
-            return jsonify({'success': False, 'message': 'Ya existe un empleado con ese nombre'}), 400
+            return jsonify({'success': False, 'message': 'Ya existe un empleado con ese nombre en esta estación'}), 400
         
         # Verificar que no exista un empleado con el mismo número de empleado
-        empleado_existente_num = Empleado.query.filter_by(num_empleado=num_empleado).first()
+        empleado_existente_num = Empleado.query.filter_by(num_empleado=num_empleado, estacion_id=estacion_id).first()
         if empleado_existente_num:
             return jsonify({'success': False, 'message': 'Ya existe un empleado con ese número de empleado'}), 400
         
