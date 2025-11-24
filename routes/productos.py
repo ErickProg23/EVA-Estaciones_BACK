@@ -8,6 +8,13 @@ productos_bp = Blueprint('productos', __name__)
 def get_productos():
     try:
         productos = Producto.query.all()
+        unicos = {}
+        for p in productos:
+            k = (p.nombre or '').strip().lower()
+            if k and k not in unicos:
+                unicos[k] = p
+            elif not k:
+                unicos[p.id] = p
         data = [
             {
                 'id': p.id,
@@ -16,7 +23,7 @@ def get_productos():
                 'estacion_id': p.estacion_id,
                 'activo': p.activo
             }
-            for p in productos
+            for p in unicos.values()
         ]
         return jsonify({'success': True, 'productos': data}), 200
     except Exception as e:
@@ -78,22 +85,31 @@ def get_productos_by_usuario_estacion(usuario_id):
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
         if not usuario.activo:
             return jsonify({'success': False, 'message': 'Usuario inactivo'}), 400
-        if not usuario.estacion_id:
-            return jsonify({'success': False, 'message': 'Usuario no tiene estación asignada'}), 400
 
-        # Incluye productos de la estación del usuario y compartidos (estacion_id = 1)
-        productos = Producto.query.filter(
-            or_(Producto.estacion_id == usuario.estacion_id, Producto.estacion_id == 1),
-            Producto.activo == True
-        ).all()
+        if usuario.id == 1:
+            productos = Producto.query.filter(Producto.activo == True).all()
+        else:
+            if not usuario.estacion_id:
+                return jsonify({'success': False, 'message': 'Usuario no tiene estación asignada'}), 400
+            productos = Producto.query.filter(
+                or_(Producto.estacion_id == usuario.estacion_id, Producto.estacion_id == 1),
+                Producto.activo == True
+            ).all()
 
+        unicos = {}
+        for p in productos:
+            k = (p.nombre or '').strip().lower()
+            if k and k not in unicos:
+                unicos[k] = p
+            elif not k:
+                unicos[p.id] = p
         data = [{
             'id': p.id,
             'nombre': p.nombre,
             'precio': p.precio,
             'estacion_id': p.estacion_id,
             'activo': p.activo
-        } for p in productos]
+        } for p in unicos.values()]
 
         return jsonify({'success': True, 'productos': data}), 200
     except Exception as e:

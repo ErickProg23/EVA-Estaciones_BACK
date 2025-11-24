@@ -14,6 +14,8 @@ from routes.tickets import tickets_bp
 from routes.reportes import reportes_bp
 from routes.dashboard import dashboard_bp
 from routes.productos import productos_bp
+from routes.bombas import bombas_bp
+from routes.lecturas_manuales import lecturas_manuales
 
 
 
@@ -33,6 +35,8 @@ app.register_blueprint(tickets_bp)
 app.register_blueprint(reportes_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(productos_bp)
+app.register_blueprint(bombas_bp)
+app.register_blueprint(lecturas_manuales)
 
 
 

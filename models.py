@@ -185,3 +185,36 @@ class Producto(db.Model):
         self.estacion_id = estacion_id
         self.activo = activo
 
+class Bomba(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    numero_bomba = db.Column(db.String(100), nullable=False)
+    estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
+    # El nombre en la BD sigue siendo 'producto', pero en Python se llama producto_id
+    producto_id = db.Column('producto', db.Integer, db.ForeignKey('producto.id'))
+    # Relación con Producto
+    producto = db.relationship('Producto', backref='bombas')
+    
+    activo = db.Column(db.Boolean, default=True)
+
+    def __init__(self, numero_bomba, estacion_id, producto_id, activo=True):
+        self.numero_bomba = numero_bomba
+        self.estacion_id = estacion_id
+        self.producto_id = producto_id
+        self.activo = activo
+
+class LecturaManual(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    numero_bomba = db.Column(db.Integer, db.ForeignKey('bomba.id'))
+    fecha = db.Column(db.DateTime, nullable=False)
+    turno = db.Column(db.Integer, nullable=False)
+    estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
+    cantidad = db.Column(db.Float, nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'))
+
+    def __init__(self, numero_bomba, fecha, turno, estacion_id, cantidad, producto_id):
+        self.numero_bomba = numero_bomba
+        self.fecha = fecha
+        self.turno = turno
+        self.estacion_id = estacion_id
+        self.cantidad = cantidad
+        self.producto_id = producto_id
