@@ -187,96 +187,6 @@ def get_info_estacion(usuario_id):
             "error": f"Error al obtener información de estación: {str(e)}"
         }), 500
 
-@dashboard_bp.route('/api/getEvaluacionesPendientes/<int:usuario_id>', methods=['GET'])
-def get_evaluaciones_pendientes(usuario_id):
-    try:
-        # Obtener el usuario y validar
-        usuario = Usuario.query.get(usuario_id)
-        if not usuario:
-            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
-        
-        estacion_id = usuario.estacion_id
-        if not estacion_id:
-            return jsonify({"success": False, "error": "Usuario no tiene estación asignada"}), 400
-        
-        # Obtener fecha actual
-        fecha_actual = datetime.now()
-        mes_actual = fecha_actual.month
-        año_actual = fecha_actual.year
-        
-        # Calcular fecha límite (último día del mes actual)
-        if mes_actual == 12:
-            fecha_limite = datetime(año_actual + 1, 1, 1) - timedelta(days=1)
-        else:
-            fecha_limite = datetime(año_actual, mes_actual + 1, 1) - timedelta(days=1)
-        
-        # Obtener todos los empleados activos de la estación
-        empleados_estacion = db.session.query(
-            Empleado.id,
-            Empleado.nombre,
-            Puesto.nombre.label('puesto_nombre')
-        ).join(
-            Puesto, Empleado.puesto_id == Puesto.id
-        ).filter(
-            and_(
-                Empleado.estacion_id == estacion_id,
-                Empleado.activo == True
-            )
-        ).all()
-        
-        # Obtener empleados que YA tienen evaluación en el mes actual
-        empleados_con_evaluacion = db.session.query(
-            Empleado.id
-        ).join(
-            Evaluacion, Empleado.id == Evaluacion.empleado_id
-        ).filter(
-            and_(
-                Empleado.estacion_id == estacion_id,
-                Evaluacion.mes == mes_actual,
-                Evaluacion.anio == año_actual
-            )
-        ).subquery()
-        
-        # Filtrar empleados SIN evaluación (pendientes)
-        empleados_pendientes = []
-        for empleado in empleados_estacion:
-            # Verificar si este empleado NO tiene evaluación
-            tiene_evaluacion = db.session.query(
-                empleados_con_evaluacion.c.id
-            ).filter(
-                empleados_con_evaluacion.c.id == empleado.id
-            ).first()
-            
-            if not tiene_evaluacion:
-                # Calcular días vencidos
-                dias_vencido = (fecha_actual.date() - fecha_limite.date()).days
-                dias_vencido = max(0, dias_vencido)  # No puede ser negativo
-                
-                empleado_pendiente = {
-                    "empleado_id": empleado.id,
-                    "empleado_nombre": empleado.nombre,
-                    "puesto_nombre": empleado.puesto_nombre,
-                    "dias_vencido": dias_vencido,
-                    "fecha_limite": fecha_limite.strftime('%Y-%m-%d')
-                }
-                empleados_pendientes.append(empleado_pendiente)
-        
-        # Ordenar por días vencido (más vencidos primero)
-        empleados_pendientes.sort(key=lambda x: x['dias_vencido'], reverse=True)
-        
-        response_data = {
-            "success": True,
-            "data": empleados_pendientes
-        }
-        
-        return jsonify(response_data), 200
-        
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Error al obtener evaluaciones pendientes: {str(e)}"
-        }), 500
-
 @dashboard_bp.route('/api/getActividadReciente/<int:usuario_id>', methods=['GET'])
 def get_actividad_reciente(usuario_id):
     try:
@@ -337,44 +247,9 @@ def get_actividad_reciente(usuario_id):
                 "calificacion": round(calificacion, 1)
             })
         
-        # Get recently added employees (last 30 days)
-        # Assuming there's a fecha_creacion or similar field in Empleado
-        # If not available, we'll use a different approach
-        empleados_recientes = db.session.query(
-            Empleado.id,
-            Empleado.nombre.label('empleado_nombre'),
-            Puesto.nombre.label('puesto_nombre'),
-            Empleado.activo  # Using activo field as a proxy for recent addition
-        ).join(
-            Puesto, Empleado.puesto_id == Puesto.id
-        ).filter(
-            and_(
-                Empleado.estacion_id == estacion_id,
-                Empleado.activo == True
-            )
-        ).order_by(
-            Empleado.id.desc()  # Assuming higher IDs are more recent
-        ).limit(5).all()
-        
-        # Add recently added employees to activities
-        # Since we don't have fecha_creacion, we'll simulate recent dates
-        for i, emp_data in enumerate(empleados_recientes):
-            # Simulate dates for recently added employees (last 30 days)
-            fecha_simulada = datetime.now() - timedelta(days=i+1, hours=9, minutes=15)
-            
-            actividades.append({
-                "id": emp_data.id + 1000,  # Offset to avoid ID conflicts
-                "tipo": "empleado_agregado",
-                "descripcion": "Nuevo empleado agregado",
-                "empleado_nombre": emp_data.empleado_nombre,
-                "puesto_nombre": emp_data.puesto_nombre,
-                "fecha": fecha_simulada.strftime("%Y-%m-%d %H:%M:%S")
-            })
-        
-        # Sort all activities by date (most recent first)
+        # Solo evaluaciones recientes; se omiten empleados recientes
+        # Ordenar y limitar por consistencia, aunque la consulta ya limita y ordena
         actividades.sort(key=lambda x: datetime.strptime(x['fecha'], "%Y-%m-%d %H:%M:%S"), reverse=True)
-        
-        # Limit to top 10 activities
         actividades = actividades[:10]
         
         return jsonify({
@@ -388,28 +263,64 @@ def get_actividad_reciente(usuario_id):
             "error": f"Error al obtener actividad reciente: {str(e)}"
         }), 500
 
-@dashboard_bp.route('/api/getRendimientoEstacion/<int:usuario_id>', methods=['GET'])
-def get_rendimiento_estacion(usuario_id):
+@dashboard_bp.route('/api/getEmpleadosEnEstacion/<int:usuario_id>', methods=['GET'])
+def get_empleados_estacion(usuario_id):
     try:
-        # Get user's station
         usuario = Usuario.query.get(usuario_id)
         if not usuario:
-            return jsonify({
-                "success": False,
-                "error": "Usuario no encontrado"
-            }), 404
-        
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
         estacion_id = usuario.estacion_id
         if not estacion_id:
-            return jsonify({
-                "success": False,
-                "error": "Usuario no tiene estación asignada"
-            }), 400
-        
-        current_year = datetime.now().year
-        
-        # 1. Get monthly averages for current year
-        promedio_mensual = db.session.query(
+            return jsonify({"success": False, "error": "Usuario no tiene estación asignada"}), 400
+
+        resultados = db.session.query(
+            Puesto.id.label('puesto_id'),
+            Puesto.nombre.label('puesto_nombre'),
+            func.count(Empleado.id).label('total_empleados')
+        ).join(
+            Empleado, Puesto.id == Empleado.puesto_id
+        ).filter(
+            Empleado.estacion_id == estacion_id,
+            Empleado.activo == True
+        ).group_by(
+            Puesto.id, Puesto.nombre
+        ).order_by(
+            Puesto.nombre
+        ).all()
+
+        data = [
+            {
+                'puesto_id': r.puesto_id,
+                'puesto_nombre': r.puesto_nombre,
+                'total_empleados': r.total_empleados
+            }
+            for r in resultados
+        ]
+
+        return jsonify({"success": True, "data": data, "estacion_id": estacion_id}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Error al obtener empleados por puesto: {str(e)}"}), 500
+
+@dashboard_bp.route('/api/getRendimientoMensual/<int:usuario_id>', methods=['GET'])
+def get_rendimiento_mensual(usuario_id):
+    try:
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario:
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+        estacion_id = usuario.estacion_id
+        if not estacion_id:
+            return jsonify({"success": False, "error": "Usuario no tiene estación asignada"}), 400
+
+        anio_str = request.args.get('anio')
+        if anio_str:
+            try:
+                anio_val = int(anio_str)
+            except Exception:
+                return jsonify({"success": False, "error": "Año inválido"}), 400
+        else:
+            anio_val = datetime.now().year
+
+        rows = db.session.query(
             Evaluacion.mes,
             func.avg(Evaluacion.calificacion_final).label('promedio'),
             func.count(Evaluacion.id).label('evaluaciones')
@@ -418,7 +329,7 @@ def get_rendimiento_estacion(usuario_id):
         ).filter(
             and_(
                 Empleado.estacion_id == estacion_id,
-                Evaluacion.anio == current_year,
+                Evaluacion.anio == anio_val,
                 Evaluacion.calificacion_final.isnot(None)
             )
         ).group_by(
@@ -426,106 +337,95 @@ def get_rendimiento_estacion(usuario_id):
         ).order_by(
             Evaluacion.mes
         ).all()
-        
-        # Format monthly data
-        promedio_mensual_data = []
-        for mes_data in promedio_mensual:
-            # Convert average to scale of 5 (assuming stored as percentage)
-            promedio = mes_data.promedio
-            if promedio > 5:  # If it's a percentage, convert to 1-5 scale
-                promedio = promedio / 20  # 100/5 = 20
-            
-            promedio_mensual_data.append({
-                "mes": mes_data.mes,
-                "promedio": round(promedio, 1),
-                "evaluaciones": mes_data.evaluaciones
+
+        mapa = {r.mes: r for r in rows}
+        meses = []
+        for m in range(1, 13):
+            r = mapa.get(m)
+            meses.append({
+                'mes': m,
+                'promedio': float(r.promedio) if r and r.promedio is not None else None,
+                'evaluaciones': int(r.evaluaciones) if r else 0
             })
-        
-        # 2. Get performance by position
-        rendimiento_por_puesto = db.session.query(
-            Puesto.nombre.label('puesto'),
-            func.avg(Evaluacion.calificacion_final).label('promedio'),
-            func.count(func.distinct(Empleado.id)).label('empleados')
-        ).join(
-            Empleado, Evaluacion.empleado_id == Empleado.id
-        ).join(
-            Puesto, Empleado.puesto_id == Puesto.id
-        ).filter(
-            and_(
-                Empleado.estacion_id == estacion_id,
-                Evaluacion.anio == current_year,
-                Evaluacion.calificacion_final.isnot(None)
-            )
-        ).group_by(
-            Puesto.id, Puesto.nombre
-        ).order_by(
-            func.avg(Evaluacion.calificacion_final).desc()
-        ).all()
-        
-        # Format position performance data
-        rendimiento_por_puesto_data = []
-        for puesto_data in rendimiento_por_puesto:
-            # Convert average to scale of 5
-            promedio = puesto_data.promedio
-            if promedio > 5:
-                promedio = promedio / 20
-            
-            rendimiento_por_puesto_data.append({
-                "puesto": puesto_data.puesto,
-                "promedio": round(promedio, 1),
-                "empleados": puesto_data.empleados
-            })
-        
-        # 3. Get top employees (highest average ratings)
-        top_empleados = db.session.query(
+
+        return jsonify({"success": True, "data": {"anio": anio_val, "meses": meses}, "estacion_id": estacion_id}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Error al obtener rendimiento mensual: {str(e)}"}), 500
+
+@dashboard_bp.route('/api/getAlertas/<int:usuario_id>', methods=['GET'])
+def get_alertas(usuario_id):
+    try:
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario:
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+        estacion_id = usuario.estacion_id
+        if not estacion_id:
+            return jsonify({"success": False, "error": "Usuario no tiene estación asignada"}), 400
+
+        now = datetime.now()
+        inicio_mes = datetime(now.year, now.month, 1)
+        deadline = inicio_mes + timedelta(days=14)
+        mes_actual = now.month
+        anio_actual = now.year
+
+        if now <= deadline:
+            return jsonify({"success": True, "message": "Aún dentro del periodo de evaluación", "data": {"deadline": deadline.strftime('%Y-%m-%d'), "mes": mes_actual, "anio": anio_actual, "atrasos": {"puestos": [], "empleados": []}}}), 200
+
+        empleados = db.session.query(
+            Empleado.id,
             Empleado.nombre,
-            Puesto.nombre.label('puesto'),
-            func.avg(Evaluacion.calificacion_final).label('promedio')
-        ).join(
-            Evaluacion, Empleado.id == Evaluacion.empleado_id
+            Puesto.id.label('puesto_id'),
+            Puesto.nombre.label('puesto_nombre')
         ).join(
             Puesto, Empleado.puesto_id == Puesto.id
         ).filter(
-            and_(
-                Empleado.estacion_id == estacion_id,
-                Evaluacion.anio == current_year,
-                Evaluacion.calificacion_final.isnot(None)
-            )
-        ).group_by(
-            Empleado.id, Empleado.nombre, Puesto.nombre
-        ).having(
-            func.count(Evaluacion.id) >= 2  # At least 2 evaluations
-        ).order_by(
-            func.avg(Evaluacion.calificacion_final).desc()
-        ).limit(10).all()
-        
-        # Format top employees data
-        top_empleados_data = []
-        for emp_data in top_empleados:
-            # Convert average to scale of 5
-            promedio = emp_data.promedio
-            if promedio > 5:
-                promedio = promedio / 20
-            
-            top_empleados_data.append({
-                "nombre": emp_data.nombre,
-                "promedio": round(promedio, 1),
-                "puesto": emp_data.puesto
-            })
-        
-        response_data = {
-            "promedioMensual": promedio_mensual_data,
-            "rendimientoPorPuesto": rendimiento_por_puesto_data,
-            "topEmpleados": top_empleados_data
-        }
-        
+            Empleado.estacion_id == estacion_id,
+            Empleado.activo == True
+        ).all()
+
+        evaluados_ids_rows = db.session.query(Empleado.id).join(
+            Evaluacion, Evaluacion.empleado_id == Empleado.id
+        ).filter(
+            Empleado.estacion_id == estacion_id,
+            Evaluacion.mes == mes_actual,
+            Evaluacion.anio == anio_actual
+        ).distinct().all()
+
+        evaluados_ids = {row.id for row in evaluados_ids_rows}
+
+        atrasados_empleados = []
+        cont_por_puesto = {}
+        for emp in empleados:
+            if emp.id not in evaluados_ids:
+                atrasados_empleados.append({
+                    "empleado_id": emp.id,
+                    "empleado_nombre": emp.nombre,
+                    "puesto_id": emp.puesto_id,
+                    "puesto_nombre": emp.puesto_nombre
+                })
+                key = (emp.puesto_id, emp.puesto_nombre)
+                cont_por_puesto[key] = cont_por_puesto.get(key, 0) + 1
+
+        atrasados_puestos = [
+            {
+                "puesto_id": k[0],
+                "puesto_nombre": k[1],
+                "pendientes": v
+            }
+            for k, v in cont_por_puesto.items()
+        ]
+
         return jsonify({
             "success": True,
-            "data": response_data
+            "data": {
+                "deadline": deadline.strftime('%Y-%m-%d'),
+                "mes": mes_actual,
+                "anio": anio_actual,
+                "atrasos": {
+                    "puestos": atrasados_puestos
+                }
+            }
         }), 200
-        
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Error al obtener rendimiento de estación: {str(e)}"
-        }), 500
+        return jsonify({"success": False, "error": f"Error al obtener alertas: {str(e)}"}), 500
+

@@ -1,6 +1,7 @@
 # models.py
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -11,19 +12,21 @@ class Usuario(db.Model):
     password = db.Column(db.String(128), nullable=False)
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
     rol_id = db.Column(db.Integer, db.ForeignKey('rol.id'))
+    correo = db.Column(db.String(120), nullable=False)
     activo = db.Column(db.Boolean, default=True)
 
     #Relaciones
     rol = db.relationship('Rol', backref='usuarios')
     estacion = db.relationship('Estacion', backref='usuarios')
 
-    def __init__(self, usuario, password, estacion_id, rol_id, nombre, activo):
+    def __init__(self, usuario, password, estacion_id, rol_id, nombre, activo, correo):
         self.usuario = usuario
         self.password = password
         self.estacion_id = estacion_id
         self.rol_id = rol_id
         self.nombre = nombre
         self.activo = activo
+        self.correo = correo
 
 class Rol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -159,11 +162,12 @@ class Ticket(db.Model):
     creador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
     asignado_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
     estado = db.Column(db.Integer, nullable=False)
+    categoria = db.Column(db.Integer, nullable=False)
     prioridad = db.Column(db.Integer, nullable=False)
     fecha_creacion = db.Column(db.DateTime, nullable=False)
     fecha_resolucion = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, titulo, descripcion, creador_id, asignado_id, estado, prioridad, fecha_creacion, fecha_resolucion):
+    def __init__(self, titulo, descripcion, creador_id, asignado_id, estado, categoria, prioridad, fecha_creacion, fecha_resolucion):
         self.titulo = titulo
         self.descripcion = descripcion
         self.creador_id = creador_id
@@ -171,6 +175,8 @@ class Ticket(db.Model):
         self.estado = estado
         self.prioridad = prioridad
         self.fecha_creacion = fecha_creacion
+        self.fecha_resolucion = fecha_resolucion
+        self.categoria = categoria
 
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -218,3 +224,16 @@ class LecturaManual(db.Model):
         self.estacion_id = estacion_id
         self.cantidad = cantidad
         self.producto_id = producto_id
+
+class TicketComentario(db.Model):
+    __tablename__ = 'ticket_comentarios'
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    comentario = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    def __init__(self, ticket_id, usuario_id, comentario):
+        self.ticket_id = ticket_id
+        self.usuario_id = usuario_id
+        self.comentario = comentario

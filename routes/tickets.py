@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify
-from models import db, Ticket, Usuario
+from models import db, Ticket, TicketComentario, Usuario
 from datetime import datetime
 from sqlalchemy import func, and_, or_
+import os, smtplib
+from email.message import EmailMessage
 
 tickets_bp = Blueprint('tickets', __name__)
 
@@ -19,6 +21,7 @@ def get_tickets():
             Ticket.fecha_resolucion,
             Ticket.creador_id,
             Ticket.asignado_id,
+            Ticket.categoria,
             Usuario.nombre.label('creador_nombre'),
         ).outerjoin(
             Usuario, Ticket.creador_id == Usuario.id
@@ -38,6 +41,7 @@ def get_tickets():
                 'titulo': ticket.titulo,
                 'descripcion': ticket.descripcion,
                 'estado': ticket.estado,
+                'categoria': ticket.categoria,
                 'prioridad': ticket.prioridad,
                 'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
                 'fecha_resolucion': ticket.fecha_resolucion.isoformat() if ticket.fecha_resolucion else None,
@@ -86,7 +90,8 @@ def get_tickets_by_usuario(usuario_id):
             Ticket.fecha_creacion,
             Ticket.fecha_resolucion,
             Ticket.creador_id,
-            Ticket.asignado_id
+            Ticket.asignado_id,
+            Ticket.categoria
         ).filter(
             or_(
                 Ticket.creador_id == usuario_id,
@@ -101,6 +106,7 @@ def get_tickets_by_usuario(usuario_id):
             # Obtener información del creador y técnico asignado
             creador = Usuario.query.get(ticket.creador_id) if ticket.creador_id else None
             tecnico = Usuario.query.get(ticket.asignado_id) if ticket.asignado_id else None
+            categoria = ticket.categoria
             
             tickets_data.append({
                 'id': ticket.id,
@@ -112,6 +118,7 @@ def get_tickets_by_usuario(usuario_id):
                 'fecha_resolucion': ticket.fecha_resolucion.isoformat() if ticket.fecha_resolucion else None,
                 'es_creador': ticket.creador_id == usuario_id,
                 'es_asignado': ticket.asignado_id == usuario_id,
+                'categoria': categoria,
                 'creador': {
                     'id': ticket.creador_id,
                     'nombre': creador.nombre if creador else 'Usuario eliminado'
@@ -127,7 +134,9 @@ def get_tickets_by_usuario(usuario_id):
             'data': tickets_data,
             'usuario': {
                 'id': usuario.id,
-                'nombre': usuario.nombre
+                'nombre': usuario.nombre,
+                'estacion_id': usuario.estacion_id,
+                'rol_id': usuario.rol_id
             },
             'total': len(tickets_data)
         }), 200
@@ -150,6 +159,7 @@ def create_ticket():
         descripcion = data.get('descripcion')
         creador_id = data.get('creador_id')
         prioridad_input = data.get('prioridad', 1)  # Puede ser string o int
+        categoria = data.get('categoria', 1)  # Puede ser string o int
         
         # Convertir prioridad de string a int si es necesario
         if isinstance(prioridad_input, str):
@@ -193,11 +203,53 @@ def create_ticket():
             estado=1,  # 1=abierto por defecto
             prioridad=prioridad,
             fecha_creacion=datetime.now(),
-            fecha_resolucion=None
+            fecha_resolucion=None,
+            categoria=categoria
         )
         
         db.session.add(nuevo_ticket)
         db.session.commit()
+
+        try:
+            destinatario = None
+            if nuevo_ticket.asignado_id:
+                asignado = Usuario.query.get(nuevo_ticket.asignado_id)
+                if asignado and getattr(asignado, 'correo', None):
+                    destinatario = asignado.correo
+            smtp_host = os.getenv('SMTP_HOST')
+            smtp_port = int(os.getenv('SMTP_PORT') or 0)
+            smtp_user = os.getenv('SMTP_USER')
+            smtp_pass = os.getenv('SMTP_PASS')
+            smtp_from = os.getenv('SMTP_FROM') or smtp_user
+            if destinatario and smtp_host and smtp_port and smtp_from:
+                msg = EmailMessage()
+                msg['Subject'] = f"Nuevo ticket asignado: {nuevo_ticket.titulo}"
+                msg['From'] = smtp_from
+                msg['To'] = destinatario
+                cuerpo = (
+                    f"Se ha creado un nuevo ticket.\n\n"
+                    f"Titulo: {nuevo_ticket.titulo}\n"
+                    f"Descripción: {nuevo_ticket.descripcion}\n"
+                    f"Prioridad: {nuevo_ticket.prioridad}\n"
+                    f"Fecha: {nuevo_ticket.fecha_creacion.isoformat()}\n"
+                )
+                msg.set_content(cuerpo)
+                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    server.ehlo()
+                    try:
+                        if server.has_extn('starttls'):
+                            server.starttls()
+                            server.ehlo()
+                    except Exception:
+                        pass
+                    if smtp_user and smtp_pass:
+                        try:
+                            server.login(smtp_user, smtp_pass)
+                        except Exception:
+                            pass
+                    server.send_message(msg)
+        except Exception:
+            pass
         
         return jsonify({
             'success': True,
@@ -210,7 +262,8 @@ def create_ticket():
                 'prioridad': nuevo_ticket.prioridad,
                 'fecha_creacion': nuevo_ticket.fecha_creacion.isoformat(),
                 'creador_id': nuevo_ticket.creador_id,
-                'asignado_id': nuevo_ticket.asignado_id
+                'asignado_id': nuevo_ticket.asignado_id,
+                'categoria': nuevo_ticket.categoria
             }
         }), 201
         
@@ -511,4 +564,42 @@ def delete_ticket(ticket_id):
             'message': 'Error al eliminar ticket',
             'error': str(e)
         }), 500
+
+@tickets_bp.get('/tickets/<int:ticket_id>/comentarios')
+def get_comentarios(ticket_id):
+    comentarios = (db.session.query(TicketComentario, Usuario.nombre.label('usuario_nombre'))
+        .join(Usuario, TicketComentario.usuario_id == Usuario.id)
+        .filter(TicketComentario.ticket_id == ticket_id)
+        .order_by(TicketComentario.created_at.asc())
+        .all())
+
+    return jsonify([
+        {
+            'id': comentario.id,
+            'comentario': comentario.comentario,
+            'created_at': comentario.created_at.isoformat(),
+            'usuario': {'id': comentario.usuario_id, 'nombre': nombre}
+        }
+        for comentario, nombre in comentarios
+    ])
+
+@tickets_bp.post('/tickets/<int:ticket_id>/comentarios')
+def add_comentario(ticket_id):
+    data = request.get_json(silent=True) or {}
+    comentario = (data.get('comentario') or '').strip()
+
+    usuario_id = request.headers.get('token_usuario_id') or data.get('usuario_id')
+    try:
+        usuario_id = int(usuario_id)
+    except (TypeError, ValueError):
+        usuario_id = None
+
+    if not comentario:
+        return jsonify({'success': False, 'message': 'Comentario requerido'}), 400
+    if not usuario_id:
+        return jsonify({'success': False, 'message': 'Usuario no autenticado'}), 401
+
+    db.session.add(TicketComentario(ticket_id=ticket_id, usuario_id=usuario_id, comentario=comentario))
+    db.session.commit()
+    return jsonify({'success': True}), 200
 
