@@ -10,10 +10,6 @@ from email.mime.multipart import MIMEMultipart
 
 tickets_bp = Blueprint('tickets', __name__)
 
-MAILTRAP_HOST = "mail.evaluacioneseva.com"
-MAILTRAP_PORT = 465
-MAILTRAP_USER = "estaciones@evaluacioneseva.com"       # <-- cámbialo por el username que te dio Mailtrap
-MAILTRAP_PASS = "q-f!R]&vM_lcaVgj"   # <-- cámbialo por la contraseña de Mailtrap
 
 def enviar_correo_ticket(html_content, destinatario):
     msg = MIMEMultipart("alternative")
