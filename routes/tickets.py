@@ -1,11 +1,90 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from models import db, Ticket, TicketComentario, Usuario
 from datetime import datetime
 from sqlalchemy import func, and_, or_
-import os, smtplib
+from dotenv import load_dotenv
+import os, smtplib, threading
 from email.message import EmailMessage
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 tickets_bp = Blueprint('tickets', __name__)
+
+MAILTRAP_HOST = "mail.evaluacioneseva.com"
+MAILTRAP_PORT = 465
+MAILTRAP_USER = "estaciones@evaluacioneseva.com"       # <-- cámbialo por el username que te dio Mailtrap
+MAILTRAP_PASS = "q-f!R]&vM_lcaVgj"   # <-- cámbialo por la contraseña de Mailtrap
+
+def enviar_correo_ticket(html_content, destinatario):
+    msg = MIMEMultipart("alternative")
+
+    msg["From"] = MAILTRAP_USER
+    msg["To"] = destinatario or "soportesistemas@estacioneslapopular.com"
+    msg["Subject"] = "Ticket nuevo creado"
+    msg.attach(MIMEText(html_content, "html"))
+
+    smtp_host = MAILTRAP_HOST
+    smtp_port = MAILTRAP_PORT
+    smtp_user = MAILTRAP_USER
+    smtp_pass = MAILTRAP_PASS
+    smtp_ssl  = True
+
+
+    if not smtp_host or not smtp_port:
+        print("SMTP: falta HOST o PORT")
+        print("HOST:", smtp_host)
+        print("PORT:", smtp_port)
+        print("USER:", smtp_user)
+        print("PASS:", smtp_pass)
+        print("SSL:", smtp_ssl)
+        return False
+
+    try:
+        if smtp_ssl:
+            # Conexión SSL directa
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
+                server.ehlo()
+                if smtp_user and smtp_pass:
+                    server.login(smtp_user, smtp_pass)
+                server.sendmail(msg["From"], msg["To"], msg.as_string())
+
+        else:
+            # Conexión normal + STARTTLS si está disponible
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.ehlo()
+                try:
+                    server.starttls()
+                    server.ehlo()
+                except Exception:
+                    print("Advertencia: no se pudo iniciar STARTTLS")
+
+                if smtp_user and smtp_pass:
+                    server.login(smtp_user, smtp_pass)
+
+                server.sendmail(msg["From"], msg["To"], msg.as_string())
+
+        print("Correo enviado correctamente ✔")
+        return True
+
+    except Exception as e:
+        print("Error enviando correo:", str(e))
+        return False
+
+
+def enviar_correo_comentario(destinatario, asunto, mensaje_html):
+    msg = MIMEMultipart("alternative")
+    msg["From"] = "soporte@estacioneslapopular.com"
+    msg["To"] = destinatario
+    msg["Subject"] = asunto
+
+    html_part = MIMEText(mensaje_html, "html")
+    msg.attach(html_part)
+
+    with smtplib.SMTP(MAILTRAP_HOST, MAILTRAP_PORT) as server:
+        server.login(MAILTRAP_USER, MAILTRAP_PASS)
+        server.sendmail(msg["From"], destinatario, msg.as_string())
+
+    print("Correo enviado correctamente (capturado en Mailtrap)")
 
 # Obtener todos los tickets (para ADMIN)
 @tickets_bp.route('/tickets', methods=['GET'])
@@ -210,44 +289,22 @@ def create_ticket():
         db.session.add(nuevo_ticket)
         db.session.commit()
 
+        datos_ticket = {
+            "titulo": nuevo_ticket.titulo,
+            "prioridad": nuevo_ticket.prioridad,
+            "estado": "Abierto",
+            "descripcion": nuevo_ticket.descripcion,
+            "nombre_usuario": usuario.nombre,
+            "fecha": nuevo_ticket.fecha_creacion.strftime("%d/%m/%Y %H:%M"),
+            "año": datetime.now().year,
+            "ticket_id": nuevo_ticket.id,
+            "url_ticket": os.getenv('APP_TICKET_URL', '#')
+        }
+        sistema = Usuario.query.get(1)
+        destinatario = sistema.correo if sistema and getattr(sistema, 'correo', None) else os.getenv('SMTP_TO_DEFAULT')
+        html_content = render_template("correo_ticket.html", **datos_ticket)
         try:
-            destinatario = None
-            if nuevo_ticket.asignado_id:
-                asignado = Usuario.query.get(nuevo_ticket.asignado_id)
-                if asignado and getattr(asignado, 'correo', None):
-                    destinatario = asignado.correo
-            smtp_host = os.getenv('SMTP_HOST')
-            smtp_port = int(os.getenv('SMTP_PORT') or 0)
-            smtp_user = os.getenv('SMTP_USER')
-            smtp_pass = os.getenv('SMTP_PASS')
-            smtp_from = os.getenv('SMTP_FROM') or smtp_user
-            if destinatario and smtp_host and smtp_port and smtp_from:
-                msg = EmailMessage()
-                msg['Subject'] = f"Nuevo ticket asignado: {nuevo_ticket.titulo}"
-                msg['From'] = smtp_from
-                msg['To'] = destinatario
-                cuerpo = (
-                    f"Se ha creado un nuevo ticket.\n\n"
-                    f"Titulo: {nuevo_ticket.titulo}\n"
-                    f"Descripción: {nuevo_ticket.descripcion}\n"
-                    f"Prioridad: {nuevo_ticket.prioridad}\n"
-                    f"Fecha: {nuevo_ticket.fecha_creacion.isoformat()}\n"
-                )
-                msg.set_content(cuerpo)
-                with smtplib.SMTP(smtp_host, smtp_port) as server:
-                    server.ehlo()
-                    try:
-                        if server.has_extn('starttls'):
-                            server.starttls()
-                            server.ehlo()
-                    except Exception:
-                        pass
-                    if smtp_user and smtp_pass:
-                        try:
-                            server.login(smtp_user, smtp_pass)
-                        except Exception:
-                            pass
-                    server.send_message(msg)
+            threading.Thread(target=enviar_correo_ticket, args=(html_content, destinatario), daemon=True).start()
         except Exception:
             pass
         
@@ -601,5 +658,17 @@ def add_comentario(ticket_id):
 
     db.session.add(TicketComentario(ticket_id=ticket_id, usuario_id=usuario_id, comentario=comentario))
     db.session.commit()
+
+    # Enviar correo al usuario que comentó
+    enviar_correo_comentario(
+        destinatario="soportesistemas@estacioneslapopular.com",
+        asunto="Nuevo comentario en tu ticket",
+        mensaje_html=f"""
+            <h3>Has recibido un nuevo comentario en tu ticket</h3>
+            <p>Comentario: {comentario}</p>
+            <p>Recuerda que puedes ver todos los comentarios en el sistema.</p>
+        """
+    )
+
     return jsonify({'success': True}), 200
 
