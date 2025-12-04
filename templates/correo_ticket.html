@@ -60,10 +60,10 @@
 </head>
 <body>
     <div class="container">
-        <h2>Nuevo Ticket Creado</h2>
+        <h2>Nuevo Ticket para revisión</h2>
 
-        <p>Hola <strong>{{ nombre_usuario }}</strong>,</p>
-        <p>Tu ticket ha sido registrado exitosamente. Aquí están los detalles:</p>
+        <p>Hola <strong>Área de Sistemas</strong>,</p>
+        <p>Se ha creado un nuevo ticket asignado para su revisión. Por favor, pase a revisarlo en el sistema. Detalles:</p>
 
         <div class="ticket-info">
             <p><strong>ID:</strong> {{ ticket_id }}</p>
@@ -72,10 +72,11 @@
             <p><strong>Estado:</strong> {{ estado }}</p>
             <p><strong>Fecha:</strong> {{ fecha }}</p>
             <p><strong>Descripción:</strong><br> {{ descripcion }}</p>
+            <p><strong>Creado por:</strong> {{ nombre_usuario }}</p>
         </div>
 
         <div class="button-container">
-            <a class="btn" href="{{ "https://evaluacioneseva.com/login" }}" target="_blank">Ver ticket en el sistema</a>
+            <a class="btn" href="{{ url_ticket }}" target="_blank">Ver ticket en el sistema</a>
         </div>
 
         <p class="footer">
