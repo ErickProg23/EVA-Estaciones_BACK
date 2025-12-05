@@ -92,7 +92,7 @@ def guardar_lectura_manual():
             turno=int(turno),
             estacion_id=estacion_id,
             cantidad=cantidad,
-            producto_id=producto_id
+            producto_id=bomba.producto_id if bomba else producto_id
         )
         db.session.add(lectura_manual)
         db.session.commit()
@@ -152,27 +152,30 @@ def get_lecturas_manual_ultimas(estacion_id):
             .filter(LecturaManual.estacion_id == estacion_id, LecturaManual.fecha >= start, LecturaManual.fecha <= end, LecturaManual.turno == turno_val)\
             .order_by(LecturaManual.fecha.desc(), LecturaManual.id.desc()).all()
 
-        bomba_ids = [r.numero_bomba for r in rows]
-        bombas = Bomba.query.filter(Bomba.id.in_(bomba_ids)).all() if bomba_ids else []
-        bombas_map = {b.id: b for b in bombas}
+        numeros = [str(r.numero_bomba) for r in rows]
+        bombas = Bomba.query.filter(Bomba.estacion_id == estacion_id, Bomba.numero_bomba.in_(numeros)).all() if numeros else []
+        bombas_map = {b.numero_bomba: b for b in bombas}
 
+        lecturas = []
         por_producto = {}
         for r in rows:
-            b = bombas_map.get(r.numero_bomba)
-            pid = b.producto_id if b else None
+            key = str(r.numero_bomba)
+            b = bombas_map.get(key)
+            item = {
+                'id': r.id,
+                'numero_bomba': key,
+                'fecha': r.fecha.isoformat(),
+                'turno': r.turno,
+                'estacion_id': r.estacion_id,
+                'cantidad': r.cantidad,
+                'producto_id': (b.producto_id if b else r.producto_id)
+            }
+            lecturas.append(item)
+            pid = item['producto_id']
             if pid not in por_producto:
-                por_producto[pid] = {
-                    'id': r.id,
-                    'bomba_id': r.numero_bomba,
-                    'numero_bomba': b.numero_bomba if b else None,
-                    'producto_id': pid,
-                    'fecha': r.fecha.isoformat(),
-                    'turno': r.turno,
-                    'estacion_id': r.estacion_id,
-                    'cantidad': r.cantidad
-                }
+                por_producto[pid] = []
+            por_producto[pid].append(item)
 
-        data = list(por_producto.values())
-        return jsonify({'success': True, 'message': 'Lecturas últimas obtenidas', 'fecha': start.date().isoformat(), 'turno': turno_val, 'lecturas': data}), 200
+        return jsonify({'success': True, 'message': 'Lecturas últimas obtenidas', 'fecha': start.date().isoformat(), 'turno': turno_val, 'lecturas': lecturas, 'lecturas_por_producto': por_producto}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al obtener lecturas últimas', 'error': str(e)}), 500
