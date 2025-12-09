@@ -87,7 +87,7 @@ def guardar_lectura_manual():
             return jsonify({'success': False, 'message': 'Bomba no encontrada'}), 404
 
         lectura_manual = LecturaManual(
-            numero_bomba=bomba.id,
+            numero_bomba=numero_bomba_input,
             fecha=fecha_dt,
             turno=int(turno),
             estacion_id=estacion_id,
@@ -100,7 +100,7 @@ def guardar_lectura_manual():
         return jsonify({'success': True, 'message': 'Lectura guardada correctamente', 'lectura': {
             'id': lectura_manual.id,
             'bomba_id': bomba.id,
-            'numero_bomba': bomba.numero_bomba,
+            'numero_bomba': numero_bomba_input,
             'producto_id': bomba.producto_id,
             'fecha': lectura_manual.fecha.isoformat(),
             'turno': lectura_manual.turno,
