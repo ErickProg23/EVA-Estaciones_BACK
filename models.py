@@ -214,7 +214,7 @@ class LecturaManual(db.Model):
     fecha = db.Column(db.DateTime, nullable=False)
     turno = db.Column(db.Integer, nullable=False)
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'))
-    cantidad = db.Column(db.Float, nullable=False)
+    cantidad = db.Column(db.Numeric(18, 0, asdecimal=True), nullable=False)
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'))
 
     def __init__(self, numero_bomba, fecha, turno, estacion_id, cantidad, producto_id):

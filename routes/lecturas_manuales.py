@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify
 from models import db, Puesto, Estacion, Rol, Usuario, Bomba, LecturaManual
 import jwt, datetime
+from decimal import Decimal, InvalidOperation
+from sqlalchemy import func
+
 
 
 lecturas_manuales = Blueprint('lecturas_manuales', __name__)
@@ -49,10 +52,12 @@ def guardar_lectura_manual():
             return jsonify({'success': False, 'message': 'Faltan datos: lectura, fecha, turno, estacion_id y bomba_id o numero_bomba'}), 400
 
         try:
-            cantidad = float(lectura_val)
+            cantidad = int(str(lectura_val))
         except Exception:
             return jsonify({'success': False, 'message': 'Lectura inválida'}), 400
 
+        print("guardarLecturaManual -> lectura_val:", lectura_val, "cantidad_parsed:", cantidad)
+        
         try:
             try:
                 fecha_dt = datetime.datetime.fromisoformat(str(fecha_str))
@@ -97,6 +102,12 @@ def guardar_lectura_manual():
         db.session.add(lectura_manual)
         db.session.commit()
 
+        saved = LecturaManual.query.get(lectura_manual.id)
+        try:
+            print('guardarLecturaManual -> stored cantidad:', int(saved.cantidad))
+        except Exception:
+            pass
+
         return jsonify({'success': True, 'message': 'Lectura guardada correctamente', 'lectura': {
             'id': lectura_manual.id,
             'bomba_id': bomba.id,
@@ -105,7 +116,7 @@ def guardar_lectura_manual():
             'fecha': lectura_manual.fecha.isoformat(),
             'turno': lectura_manual.turno,
             'estacion_id': lectura_manual.estacion_id,
-            'cantidad': lectura_manual.cantidad
+            'cantidad': cantidad
         }}), 201
     except Exception as e:
         db.session.rollback()
@@ -179,3 +190,63 @@ def get_lecturas_manual_ultimas(estacion_id):
         return jsonify({'success': True, 'message': 'Lecturas últimas obtenidas', 'fecha': start.date().isoformat(), 'turno': turno_val, 'lecturas': lecturas, 'lecturas_por_producto': por_producto}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al obtener lecturas últimas', 'error': str(e)}), 500
+
+def prev_turno_fecha(fecha_str, turno):
+    d = datetime.date.fromisoformat(fecha_str)
+    if int(turno) > 1:
+        return d, int(turno) - 1
+    return d - datetime.timedelta(days=1), 3
+
+@lecturas_manuales.route('/api/getLecturasManualDiferencias/<int:estacion_id>')
+def get_lecturas_manual_diferencias(estacion_id):
+    fecha_str = request.args.get('fecha')
+    turno = request.args.get('turno', type=int)
+    if not fecha_str or turno is None:
+        return jsonify({'success': False, 'message': 'faltan fecha y turno'}), 400
+
+    try:
+        fecha_dt = datetime.date.fromisoformat(fecha_str)
+    except Exception:
+        return jsonify({'success': False, 'message': 'fecha inválida'}), 400
+
+    prev_fecha_dt, prev_turno = prev_turno_fecha(fecha_str, turno)
+
+    cur_list = (db.session.query(LecturaManual)
+        .filter(LecturaManual.estacion_id == estacion_id)
+        .filter(func.date(LecturaManual.fecha) == fecha_dt)
+        .filter(LecturaManual.turno == turno)
+        .all())
+
+    prev_list = (db.session.query(LecturaManual)
+        .filter(LecturaManual.estacion_id == estacion_id)
+        .filter(func.date(LecturaManual.fecha) == prev_fecha_dt)
+        .filter(LecturaManual.turno == prev_turno)
+        .all())
+
+    def k(it): return f"{it.estacion_id}:{it.producto_id}:{str(it.numero_bomba)}"
+    cur_map = {k(it): it for it in cur_list}
+    prev_map = {k(it): it for it in prev_list}
+    keys = set(cur_map.keys()) | set(prev_map.keys())
+
+    data = []
+    for key in keys:
+        c = cur_map.get(key)
+        p = prev_map.get(key)
+        final_actual = float(c.cantidad) if c else 0.0
+        final_prev = float(p.cantidad) if p else 0.0
+        dif = final_actual - final_prev
+        data.append({
+            'estacion_id': int(c.estacion_id if c else p.estacion_id),
+            'producto_id': int(c.producto_id if c else p.producto_id),
+            'numero_bomba': int(c.numero_bomba if c else p.numero_bomba),
+            'fecha': fecha_dt.isoformat(),
+            'turno': int(turno),
+            'final_actual': final_actual,
+            'fecha_prev': prev_fecha_dt.isoformat(),
+            'turno_prev': int(prev_turno),
+            'final_prev': final_prev,
+            'dif_lecturas': dif,
+            'success': True
+        })
+
+    return jsonify({'success': True, 'lecturas': data}), 200
