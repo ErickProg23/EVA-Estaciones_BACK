@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import db, Puesto, Estacion, Rol, Usuario, Bomba, LecturaManual
+from models import db, Puesto, Estacion, Rol, Usuario, Bomba, LecturaManual, ComparativaTotal
 import jwt, datetime
 from decimal import Decimal, InvalidOperation
 from sqlalchemy import func
@@ -250,3 +250,95 @@ def get_lecturas_manual_diferencias(estacion_id):
         })
 
     return jsonify({'success': True, 'lecturas': data}), 200
+
+@lecturas_manuales.route('/api/saveComparativaTotales', methods=['POST'])
+def save_comparativa_totales():
+    try:
+        data = request.get_json()
+        estacion_id = data.get('estacion_id')
+        fecha_str = data.get('fecha')
+        turno = data.get('turno')
+        detalles = data.get('detalles')
+
+
+        if not all([estacion_id, fecha_str, turno, detalles]):
+            return jsonify({'success': False, 'message': 'Faltan datos'}), 400
+
+        try:
+            try:
+                fecha_dt = datetime.datetime.fromisoformat(str(fecha_str)).date()
+            except ValueError:
+                fecha_dt = datetime.datetime.strptime(str(fecha_str), '%Y-%m-%d').date()
+        except Exception:
+            return jsonify({'success': False, 'message': 'Fecha inválida'}), 400
+
+        # Upsert logic
+        for prod_id_str, info in detalles.items():
+            try:
+                prod_id = int(prod_id_str)
+                nexus = float(info.get('nexus', 0))
+                dif_lect = float(info.get('dif_lect', 0))
+                precio = float(info.get('precio', 0))
+                dif_pesos = float(info.get('dif_pesos', 0))
+            except ValueError:
+                continue
+            
+            existing = ComparativaTotal.query.filter_by(
+                estacion_id=estacion_id,
+                fecha=fecha_dt,
+                turno=turno,
+                producto_id=prod_id
+            ).first()
+
+            if existing:
+                existing.nexus_total = nexus
+                existing.diferencia_lecturas = dif_lect
+                existing.precio_unitario = precio
+                existing.diferencia_pesos = dif_pesos
+            else:
+                new_entry = ComparativaTotal(estacion_id, fecha_dt, turno, prod_id, nexus, dif_lect, precio, dif_pesos)
+                db.session.add(new_entry)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Totales guardados correctamente'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Error al guardar totales', 'error': str(e)}), 500
+
+@lecturas_manuales.route('/api/getComparativaTotales/<int:estacion_id>', methods=['GET'])
+def get_comparativa_totales(estacion_id):
+    try:
+        fecha_str = request.args.get('fecha')
+        turno = request.args.get('turno')
+
+        if not fecha_str or not turno:
+            return jsonify({'success': False, 'message': 'Faltan fecha o turno'}), 400
+
+        try:
+            try:
+                fecha_dt = datetime.datetime.fromisoformat(str(fecha_str)).date()
+            except ValueError:
+                fecha_dt = datetime.datetime.strptime(str(fecha_str), '%Y-%m-%d').date()
+        except Exception:
+            return jsonify({'success': False, 'message': 'Fecha inválida'}), 400
+        
+        results = ComparativaTotal.query.filter_by(
+            estacion_id=estacion_id,
+            fecha=fecha_dt,
+            turno=turno
+        ).all()
+
+        data = {}
+        for r in results:
+            data[str(r.producto_id)] = {
+                'nexus': r.nexus_total,
+                'dif_lect': r.diferencia_lecturas,
+                'precio': r.precio_unitario,
+                'dif_pesos': r.diferencia_pesos
+            }
+        
+        return jsonify({'success': True, 'detalles': data}), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': 'Error al obtener totales', 'error': str(e)}), 500

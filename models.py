@@ -237,3 +237,78 @@ class TicketComentario(db.Model):
         self.ticket_id = ticket_id
         self.usuario_id = usuario_id
         self.comentario = comentario
+
+class ComparativaTotal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'), nullable=False)
+    fecha = db.Column(db.Date, nullable=False)
+    turno = db.Column(db.Integer, nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    nexus_total = db.Column(db.Float, nullable=False, default=0.0)
+    diferencia_lecturas = db.Column(db.Float, default=0.0)
+    precio_unitario = db.Column(db.Float, default=0.0)
+    diferencia_pesos = db.Column(db.Float, default=0.0)
+
+    def __init__(self, estacion_id, fecha, turno, producto_id, nexus_total, diferencia_lecturas=0.0, precio_unitario=0.0, diferencia_pesos=0.0):
+        self.estacion_id = estacion_id
+        self.fecha = fecha
+        self.turno = turno
+        self.producto_id = producto_id
+        self.nexus_total = nexus_total
+        self.diferencia_lecturas = diferencia_lecturas
+        self.precio_unitario = precio_unitario
+        self.diferencia_pesos = diferencia_pesos
+
+class Material(db.Model):
+    __tablename__ = 'material'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(150), nullable=False)
+    unidad = db.Column(db.String(50), nullable=False)
+    activo = db.Column(db.Boolean, default=True)
+
+    def __init__(self, nombre, unidad, activo=True):
+        self.nombre = nombre
+        self.unidad = unidad
+        self.activo = activo
+
+class EstacionMaterial(db.Model):
+    __tablename__ = 'estacion_material'
+    id = db.Column(db.Integer, primary_key=True)
+    estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('material.id'), nullable=False)
+    activo = db.Column(db.Boolean, default=True)
+
+    # Relaciones
+    estacion = db.relationship('Estacion', backref='materiales_asignados')
+    material = db.relationship('Material', backref='estaciones_asignadas')
+
+    __table_args__ = (
+        db.UniqueConstraint('estacion_id', 'material_id', name='uq_estacion_material'),
+    )
+
+    def __init__(self, estacion_id, material_id, activo=True):
+        self.estacion_id = estacion_id
+        self.material_id = material_id
+        self.activo = activo
+
+class SolicitudMaterial(db.Model):
+    __tablename__ = 'solicitudes_material'
+    id = db.Column(db.Integer, primary_key=True)
+    estacion_material_id = db.Column(db.Integer, db.ForeignKey('estacion_material.id'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    cantidad = db.Column(db.Numeric(10, 2), nullable=False)
+    fecha_solicitada = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    estado = db.Column(db.Enum('pendiente', 'aceptado', 'rechazado'), nullable=False, default='pendiente')
+    comentario = db.Column(db.Text, nullable=True)
+
+    # Relaciones
+    estacion_material = db.relationship('EstacionMaterial', backref='solicitudes')
+    usuario = db.relationship('Usuario', backref='solicitudes_material')
+
+    def __init__(self, estacion_material_id, usuario_id, cantidad, estado='pendiente', comentario=None):
+        self.estacion_material_id = estacion_material_id
+        self.usuario_id = usuario_id
+        self.cantidad = cantidad
+        self.estado = estado
+        self.comentario = comentario
+        self.fecha_solicitada = datetime.now()
