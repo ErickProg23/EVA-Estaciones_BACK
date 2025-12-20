@@ -47,7 +47,8 @@ def get_materiales_estacion(estacion_id):
                 'asignacion_id': asignacion.id,
                 'material_id': material.id,
                 'nombre': material.nombre,
-                'unidad': material.unidad
+                'unidad': material.unidad,
+                'stock': float(asignacion.stock)
             })
         return jsonify(resultado), 200
     except Exception as e:
@@ -59,6 +60,7 @@ def asignar_material():
         data = request.json
         estacion_id = data.get('estacion_id')
         material_id = data.get('material_id')
+        stock_inicial = data.get('stock', 0.0)
 
         if not estacion_id or not material_id:
             return jsonify({'message': 'Estacion ID y Material ID son requeridos'}), 400
@@ -69,15 +71,44 @@ def asignar_material():
         if existente:
             if not existente.activo:
                 existente.activo = True
+                existente.stock = stock_inicial # Reiniciar o establecer stock si se reactiva
                 db.session.commit()
                 return jsonify({'message': 'Material reactivado en la estación'}), 200
             return jsonify({'message': 'El material ya está asignado a esta estación'}), 400
 
-        nueva_asignacion = EstacionMaterial(estacion_id=estacion_id, material_id=material_id)
+        nueva_asignacion = EstacionMaterial(estacion_id=estacion_id, material_id=material_id, stock=stock_inicial)
         db.session.add(nueva_asignacion)
         db.session.commit()
 
         return jsonify({'message': 'Material asignado correctamente'}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': str(e)}), 500
+
+@materiales_bp.route('/api/materiales/stock', methods=['PUT'])
+def update_stock():
+    try:
+        data = request.json
+        estacion_id = data.get('estacion_id')
+        material_id = data.get('material_id')
+        cantidad = data.get('cantidad') # Puede ser positivo o negativo para ajustar, o valor absoluto
+        tipo = data.get('tipo', 'absoluto') # 'absoluto' o 'incremento'
+        
+        if not estacion_id or not material_id or cantidad is None:
+            return jsonify({'message': 'Faltan datos requeridos (estacion_id, material_id, cantidad)'}), 400
+
+        asignacion = EstacionMaterial.query.filter_by(estacion_id=estacion_id, material_id=material_id).first()
+        
+        if not asignacion:
+            return jsonify({'message': 'Material no asignado a la estación'}), 404
+            
+        if tipo == 'incremento':
+            asignacion.stock += float(cantidad)
+        else:
+            asignacion.stock = float(cantidad)
+            
+        db.session.commit()
+        return jsonify({'message': 'Stock actualizado correctamente', 'nuevo_stock': float(asignacion.stock)}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': str(e)}), 500

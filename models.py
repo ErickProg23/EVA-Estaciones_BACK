@@ -276,6 +276,7 @@ class EstacionMaterial(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'), nullable=False)
     material_id = db.Column(db.Integer, db.ForeignKey('material.id'), nullable=False)
+    stock = db.Column(db.Float, nullable=False, default=0.0)
     activo = db.Column(db.Boolean, default=True)
 
     # Relaciones
@@ -286,27 +287,28 @@ class EstacionMaterial(db.Model):
         db.UniqueConstraint('estacion_id', 'material_id', name='uq_estacion_material'),
     )
 
-    def __init__(self, estacion_id, material_id, activo=True):
+    def __init__(self, estacion_id, material_id, stock=0.0, activo=True):
         self.estacion_id = estacion_id
         self.material_id = material_id
+        self.stock = stock
         self.activo = activo
 
 class SolicitudMaterial(db.Model):
     __tablename__ = 'solicitudes_material'
     id = db.Column(db.Integer, primary_key=True)
-    estacion_material_id = db.Column(db.Integer, db.ForeignKey('estacion_material.id'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('estacion_material.id'), nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     cantidad = db.Column(db.Numeric(10, 2), nullable=False)
     fecha_solicitada = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    estado = db.Column(db.Enum('pendiente', 'aceptado', 'rechazado'), nullable=False, default='pendiente')
+    estado = db.Column(db.Enum('pendiente', 'aceptado', 'rechazado', 'cancelado'), nullable=False, default='pendiente')
     comentario = db.Column(db.Text, nullable=True)
 
     # Relaciones
     estacion_material = db.relationship('EstacionMaterial', backref='solicitudes')
     usuario = db.relationship('Usuario', backref='solicitudes_material')
 
-    def __init__(self, estacion_material_id, usuario_id, cantidad, estado='pendiente', comentario=None):
-        self.estacion_material_id = estacion_material_id
+    def __init__(self, material_id, usuario_id, cantidad, estado='pendiente', comentario=None):
+        self.material_id = material_id
         self.usuario_id = usuario_id
         self.cantidad = cantidad
         self.estado = estado
