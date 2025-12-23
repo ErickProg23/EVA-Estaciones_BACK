@@ -172,3 +172,41 @@ def update_solicitud_status(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
+
+@solicitudes_bp.route('/api/solicitudes/<int:id>/confirmar', methods=['POST'])
+def confirmar_recepcion(id):
+    try:
+        solicitud = SolicitudMaterial.query.get(id)
+        if not solicitud:
+            return jsonify({'message': 'Solicitud no encontrada'}), 404
+
+        # Validar flujo: Admin (Aceptado) -> Encargado (Finalizado)
+        # El usuario indicó que el Admin aprueba (Aceptado) y luego el Encargado confirma.
+        # Se mantiene 'entregado' por compatibilidad, pero el estado principal esperado es 'aceptado'.
+        if solicitud.estado not in ['aceptado', 'entregado']:
+            return jsonify({'message': 'La solicitud debe estar Aceptada por el administrador para confirmar la recepción'}), 400
+
+        # 1. Actualizar estado de la solicitud
+        solicitud.estado = 'finalizado'
+        
+        # 2. Actualizar stock del material en la estación
+        estacion_material = solicitud.estacion_material
+        if estacion_material:
+            cantidad_sumar = float(solicitud.cantidad)
+            estacion_material.stock += cantidad_sumar
+            db.session.add(estacion_material) # Asegurar que se marca para actualización
+            
+            msg = f" | Recepción confirmada: +{cantidad_sumar} stock el {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            if solicitud.comentario:
+                solicitud.comentario += msg
+            else:
+                solicitud.comentario = msg.strip(" | ")
+        else:
+            return jsonify({'message': 'Error: No se encontró la asignación de material asociada'}), 500
+
+        db.session.commit()
+
+        return jsonify({'message': 'Recepción confirmada y stock actualizado correctamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': str(e)}), 500

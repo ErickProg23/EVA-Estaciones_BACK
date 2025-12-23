@@ -48,7 +48,8 @@ def get_materiales_estacion(estacion_id):
                 'material_id': material.id,
                 'nombre': material.nombre,
                 'unidad': material.unidad,
-                'stock': float(asignacion.stock)
+                'stock': float(asignacion.stock),
+                'stock_minimo': asignacion.stock_minimo
             })
         return jsonify(resultado), 200
     except Exception as e:
@@ -61,6 +62,7 @@ def asignar_material():
         estacion_id = data.get('estacion_id')
         material_id = data.get('material_id')
         stock_inicial = data.get('stock', 0.0)
+        stock_minimo = data.get('stock_minimo', 0.0)
 
         if not estacion_id or not material_id:
             return jsonify({'message': 'Estacion ID y Material ID son requeridos'}), 400
@@ -72,11 +74,20 @@ def asignar_material():
             if not existente.activo:
                 existente.activo = True
                 existente.stock = stock_inicial # Reiniciar o establecer stock si se reactiva
+                existente.stock_minimo = stock_minimo
                 db.session.commit()
                 return jsonify({'message': 'Material reactivado en la estación'}), 200
-            return jsonify({'message': 'El material ya está asignado a esta estación'}), 400
+            
+            # Si ya existe y está activo, actualizamos los valores
+            existente.stock_minimo = stock_minimo
+            # Actualizamos stock solo si se envió en la petición
+            if 'stock' in data:
+                existente.stock = stock_inicial
+            
+            db.session.commit()
+            return jsonify({'message': 'Asignación actualizada correctamente'}), 200
 
-        nueva_asignacion = EstacionMaterial(estacion_id=estacion_id, material_id=material_id, stock=stock_inicial)
+        nueva_asignacion = EstacionMaterial(estacion_id=estacion_id, material_id=material_id, stock=stock_inicial, stock_minimo=stock_minimo)
         db.session.add(nueva_asignacion)
         db.session.commit()
 

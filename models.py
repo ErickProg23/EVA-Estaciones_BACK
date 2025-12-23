@@ -277,6 +277,7 @@ class EstacionMaterial(db.Model):
     estacion_id = db.Column(db.Integer, db.ForeignKey('estacion.id'), nullable=False)
     material_id = db.Column(db.Integer, db.ForeignKey('material.id'), nullable=False)
     stock = db.Column(db.Float, nullable=False, default=0.0)
+    stock_minimo = db.Column(db.Integer, nullable=False, default=0.0)
     activo = db.Column(db.Boolean, default=True)
 
     # Relaciones
@@ -287,10 +288,11 @@ class EstacionMaterial(db.Model):
         db.UniqueConstraint('estacion_id', 'material_id', name='uq_estacion_material'),
     )
 
-    def __init__(self, estacion_id, material_id, stock=0.0, activo=True):
+    def __init__(self, estacion_id, material_id, stock=0.0, stock_minimo=0.0, activo=True):
         self.estacion_id = estacion_id
         self.material_id = material_id
         self.stock = stock
+        self.stock_minimo = stock_minimo
         self.activo = activo
 
 class SolicitudMaterial(db.Model):
@@ -300,7 +302,7 @@ class SolicitudMaterial(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     cantidad = db.Column(db.Numeric(10, 2), nullable=False)
     fecha_solicitada = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    estado = db.Column(db.Enum('pendiente', 'aceptado', 'rechazado', 'cancelado'), nullable=False, default='pendiente')
+    estado = db.Column(db.Enum('pendiente', 'aceptado', 'rechazado', 'cancelado', 'entregado','finalizado'), nullable=False, default='pendiente')
     comentario = db.Column(db.Text, nullable=True)
 
     # Relaciones
