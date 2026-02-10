@@ -51,16 +51,27 @@ def enviar_correo_async(destinatario, asunto, html_content):
 def create_solicitud():
     try:
         data = request.json
-        material_id = data.get('material_id')
+        catalogo_material_id = data.get('material_id')
         usuario_id = data.get('usuario_id')
         cantidad = data.get('cantidad')
         comentario = data.get('comentarios')
 
-        if not material_id or not usuario_id or not cantidad:
+        if not catalogo_material_id or not usuario_id or not cantidad:
             return jsonify({'message': 'Faltan datos requeridos (material_id, usuario_id, cantidad)'}), 400
 
+        # 1. Obtener la estación del usuario
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario:
+            return jsonify({'message': 'Usuario no encontrado'}), 404
+
+        # 2. Buscar el EstacionMaterial correspondiente (Inventario de esa estación)
+        estacion_material = EstacionMaterial.query.filter_by(
+            estacion_id=usuario.estacion_id,
+            material_id=catalogo_material_id
+        ).first()
+
         nueva_solicitud = SolicitudMaterial(
-            material_id=material_id,
+            material_id=estacion_material.id,
             usuario_id=usuario_id,
             cantidad=cantidad,
             comentario=comentario
