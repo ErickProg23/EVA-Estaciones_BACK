@@ -60,9 +60,9 @@ def get_metricas_estacion(usuario_id):
         # 6. Evaluaciones pendientes
         evaluaciones_pendientes = max(0, empleados_para_evaluar - evaluaciones_mes_actual)
         
-        # 7. Promedio de calificación del mes actual (en escala de 100)
+        # 7. Promedio de porcentaje del mes actual (0-100)
         promedio_actual_query = db.session.query(
-            func.avg(Evaluacion.calificacion_final)
+            func.avg(Evaluacion.porcentaje_final)
         ).join(
             Empleado, Evaluacion.empleado_id == Empleado.id
         ).filter(
@@ -73,14 +73,11 @@ def get_metricas_estacion(usuario_id):
             )
         ).scalar()
         
-        # Convertir a escala de 100 (asumiendo escala 1-5)
-        promedio_calificacion = 0
-        if promedio_actual_query:
-            promedio_calificacion = (promedio_actual_query / 5.0) * 100
+        promedio_calificacion = float(promedio_actual_query) if promedio_actual_query else 0
         
         # 8. Promedio del mes anterior para calcular tendencia
         promedio_anterior_query = db.session.query(
-            func.avg(Evaluacion.calificacion_final)
+            func.avg(Evaluacion.porcentaje_final)
         ).join(
             Empleado, Evaluacion.empleado_id == Empleado.id
         ).filter(
@@ -94,8 +91,7 @@ def get_metricas_estacion(usuario_id):
         # Calcular tendencia
         tendencia_promedio = "0.0"
         if promedio_anterior_query and promedio_actual_query:
-            promedio_anterior_100 = (promedio_anterior_query / 5.0) * 100
-            diferencia = promedio_calificacion - promedio_anterior_100
+            diferencia = promedio_calificacion - float(promedio_anterior_query)
             if diferencia > 0:
                 tendencia_promedio = f"+{diferencia:.1f}"
             else:
@@ -213,7 +209,7 @@ def get_actividad_reciente(usuario_id):
         evaluaciones_recientes = db.session.query(
             Evaluacion.id,
             Evaluacion.fecha_evaluacion,
-            Evaluacion.calificacion_final,
+            Evaluacion.porcentaje_final,
             Empleado.nombre.label('empleado_nombre'),
             Puesto.nombre.label('puesto_nombre')
         ).join(
@@ -224,7 +220,7 @@ def get_actividad_reciente(usuario_id):
             and_(
                 Empleado.estacion_id == estacion_id,
                 Evaluacion.fecha_evaluacion >= fecha_limite,
-                Evaluacion.calificacion_final.isnot(None)
+                Evaluacion.porcentaje_final.isnot(None)
             )
         ).order_by(
             Evaluacion.fecha_evaluacion.desc()
@@ -232,11 +228,7 @@ def get_actividad_reciente(usuario_id):
         
         # Add completed evaluations to activities
         for eval_data in evaluaciones_recientes:
-            # Convert calificacion_final to scale of 5 (assuming it's stored as percentage)
-            calificacion = eval_data.calificacion_final
-            if calificacion > 5:  # If it's a percentage, convert to 1-5 scale
-                calificacion = calificacion / 20  # 100/5 = 20
-            
+            porcentaje = eval_data.porcentaje_final or 0
             actividades.append({
                 "id": eval_data.id,
                 "tipo": "evaluacion_completada",
@@ -244,7 +236,7 @@ def get_actividad_reciente(usuario_id):
                 "empleado_nombre": eval_data.empleado_nombre,
                 "puesto_nombre": eval_data.puesto_nombre,
                 "fecha": eval_data.fecha_evaluacion.strftime("%Y-%m-%d %H:%M:%S"),
-                "calificacion": round(calificacion, 1)
+                "calificacion": round(porcentaje, 1)
             })
         
         # Solo evaluaciones recientes; se omiten empleados recientes
@@ -322,7 +314,7 @@ def get_rendimiento_mensual(usuario_id):
 
         rows = db.session.query(
             Evaluacion.mes,
-            func.avg(Evaluacion.calificacion_final).label('promedio'),
+            func.avg(Evaluacion.porcentaje_final).label('promedio'),
             func.count(Evaluacion.id).label('evaluaciones')
         ).join(
             Empleado, Evaluacion.empleado_id == Empleado.id
@@ -330,7 +322,7 @@ def get_rendimiento_mensual(usuario_id):
             and_(
                 Empleado.estacion_id == estacion_id,
                 Evaluacion.anio == anio_val,
-                Evaluacion.calificacion_final.isnot(None)
+                Evaluacion.porcentaje_final.isnot(None)
             )
         ).group_by(
             Evaluacion.mes

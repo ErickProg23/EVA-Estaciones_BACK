@@ -16,7 +16,7 @@ def get_reportes_estaciones():
             Puesto.nombre.label('puesto_nombre'),
             Empleado.id.label('empleado_id'),
             Empleado.nombre.label('empleado_nombre'),
-            func.avg(Evaluacion.calificacion_final).label('promedio'),
+            func.avg(Evaluacion.porcentaje_final).label('promedio'),
             func.count(Evaluacion.id).label('total_evaluaciones'),
             Evaluacion.mes,
             Evaluacion.anio.label('año'),
@@ -50,10 +50,7 @@ def get_reportes_estaciones():
         for idx, resultado in enumerate(resultados, 1):
             # Convertir promedio a escala de 100
             # Asumiendo que calificacion_final está en escala 1-5, convertimos a 100
-            promedio_100 = 0
-            if resultado.promedio:
-                # Si tu escala es 1-5, usa esta fórmula:
-                promedio_100 = (resultado.promedio / 5.0) * 100
+            promedio_porcentaje = float(resultado.promedio) if resultado.promedio else 0
                 # Si tu escala es 1-10, usa esta fórmula:
                 # promedio_100 = (resultado.promedio / 10.0) * 100
                 # Si ya está en escala 1-100, usa:
@@ -67,7 +64,7 @@ def get_reportes_estaciones():
                 "puesto_nombre": resultado.puesto_nombre,
                 "empleado_id": resultado.empleado_id,
                 "empleado_nombre": resultado.empleado_nombre,
-                "promedio": f"{promedio_100:.1f}",  # Promedio en escala de 100
+                "promedio": f"{promedio_porcentaje:.1f}",  # Promedio en escala de 100
                 "total_evaluaciones": resultado.total_evaluaciones,
                 "mes": resultado.mes,
                 "año": resultado.año,
