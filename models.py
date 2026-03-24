@@ -32,10 +32,12 @@ class Rol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(80), nullable=False)
     descripcion = db.Column(db.String(200), nullable=True)
+    activo = db.Column(db.Boolean, default=True)
 
-    def __init__(self, nombre, descripcion):
+    def __init__(self, nombre, descripcion=None, activo=True):
         self.nombre = nombre
         self.descripcion = descripcion
+        self.activo = activo
 
 class Estacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
