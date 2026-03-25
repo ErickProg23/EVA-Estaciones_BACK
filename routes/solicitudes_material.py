@@ -170,6 +170,8 @@ def update_solicitud_status(id):
         if not solicitud:
             return jsonify({'message': 'Solicitud no encontrada'}), 404
 
+        comentario_original = solicitud.comentario
+
         solicitud.estado = estado
         if comentarios:
             if solicitud.comentario:
@@ -178,6 +180,40 @@ def update_solicitud_status(id):
                 solicitud.comentario = comentarios
         
         db.session.commit()
+
+        try:
+            if estado in ['aceptado', 'rechazado'] and solicitud.usuario and solicitud.usuario.correo:
+                material_obj = solicitud.estacion_material.material if solicitud.estacion_material else None
+                estacion_obj = solicitud.usuario.estacion if solicitud.usuario else None
+
+                header_color = '#28a745' if estado == 'aceptado' else '#dc3545'
+                page_title = f"Solicitud de Material #{solicitud.id} - {estado.upper()}"
+                intro_text = f"Tu solicitud de material ha sido {estado}."
+
+                html_content = render_template(
+                    'correo_solicitud.html',
+                    page_title=page_title,
+                    header_color=header_color,
+                    intro_text=intro_text,
+                    id=solicitud.id,
+                    solicitante=solicitud.usuario.nombre,
+                    estacion=estacion_obj.nombre if estacion_obj else "Sin Estación",
+                    estado=estado,
+                    material=material_obj.nombre if material_obj else "N/A",
+                    unidad=material_obj.unidad if material_obj else "",
+                    cantidad=float(solicitud.cantidad),
+                    fecha=solicitud.fecha_solicitada.strftime('%Y-%m-%d %H:%M') if solicitud.fecha_solicitada else "",
+                    comentario=comentario_original or "Sin comentarios",
+                    comentario_revision=comentarios or None
+                )
+
+                asunto = f"Solicitud de Material #{solicitud.id} - {estado.upper()}"
+                threading.Thread(
+                    target=enviar_correo_async,
+                    args=(solicitud.usuario.correo, asunto, html_content)
+                ).start()
+        except Exception as e:
+            print(f"Error enviando correo de actualización de estado: {e}")
 
         return jsonify({'message': 'Estado actualizado correctamente'}), 200
     except Exception as e:
