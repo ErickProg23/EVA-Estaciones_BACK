@@ -166,19 +166,21 @@ class Ticket(db.Model):
     estado = db.Column(db.Integer, nullable=False)
     categoria = db.Column(db.Integer, nullable=False)
     prioridad = db.Column(db.Integer, nullable=False)
+    reparacion = db.Column(db.Text, nullable=True)
     fecha_creacion = db.Column(db.DateTime, nullable=False)
     fecha_resolucion = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, titulo, descripcion, creador_id, asignado_id, estado, categoria, prioridad, fecha_creacion, fecha_resolucion):
+    def __init__(self, titulo, descripcion, creador_id, asignado_id, estado, categoria, prioridad, reparacion, fecha_creacion, fecha_resolucion):
         self.titulo = titulo
         self.descripcion = descripcion
         self.creador_id = creador_id
         self.asignado_id = asignado_id
         self.estado = estado
         self.prioridad = prioridad
-        self.fecha_creacion = fecha_creacion
-        self.fecha_resolucion = fecha_resolucion
+        self.reparacion = reparacion
         self.categoria = categoria
+        self.fecha_creacion = fecha_creacion
+        self.fecha_resolucion = fecha_resolucion    
 
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)

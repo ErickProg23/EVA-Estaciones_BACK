@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from models import db, Ticket, TicketComentario, Usuario
+from models import db, Ticket, TicketComentario, Usuario, Estacion
 from datetime import datetime
 from sqlalchemy import func, and_, or_
 from dotenv import load_dotenv
@@ -127,9 +127,14 @@ def get_tickets():
             Ticket.creador_id,
             Ticket.asignado_id,
             Ticket.categoria,
+            Ticket.reparacion,
             Usuario.nombre.label('creador_nombre'),
+            Usuario.estacion_id.label('estacion_id'),
+            Estacion.nombre.label('estacion_nombre'),
         ).outerjoin(
             Usuario, Ticket.creador_id == Usuario.id
+        ).outerjoin(
+            Estacion, Usuario.estacion_id == Estacion.id
         ).order_by(
             Ticket.fecha_creacion.desc()
         ).all()
@@ -148,6 +153,11 @@ def get_tickets():
                 'estado': ticket.estado,
                 'categoria': ticket.categoria,
                 'prioridad': ticket.prioridad,
+                'reparacion': ticket.reparacion,
+                'estacion': {
+                    'id': ticket.estacion_id,
+                    'nombre': ticket.estacion_nombre
+                } if ticket.estacion_id else None,
                 'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
                 'fecha_resolucion': ticket.fecha_resolucion.isoformat() if ticket.fecha_resolucion else None,
                 'creador': {
@@ -185,7 +195,13 @@ def get_tickets_by_usuario(usuario_id):
                 'message': 'Usuario no encontrado'
             }), 404
         
-        # Obtener tickets creados por el usuario O asignados al usuario
+        if not usuario.estacion_id:
+            return jsonify({
+                'success': False,
+                'message': 'Usuario no tiene estación asignada'
+            }), 400
+
+        # Obtener tickets por estación del usuario solicitante (estación del creador)
         tickets = db.session.query(
             Ticket.id,
             Ticket.titulo,
@@ -196,22 +212,24 @@ def get_tickets_by_usuario(usuario_id):
             Ticket.fecha_resolucion,
             Ticket.creador_id,
             Ticket.asignado_id,
-            Ticket.categoria
+            Ticket.categoria,
+            Ticket.reparacion,
+            Usuario.nombre.label('creador_nombre'),
+            Usuario.estacion_id.label('estacion_id'),
+            Estacion.nombre.label('estacion_nombre'),
+        ).outerjoin(
+            Usuario, Ticket.creador_id == Usuario.id
+        ).outerjoin(
+            Estacion, Usuario.estacion_id == Estacion.id
         ).filter(
-            or_(
-                Ticket.creador_id == usuario_id,
-                Ticket.asignado_id == usuario_id
-            )
+            Usuario.estacion_id == usuario.estacion_id
         ).order_by(
             Ticket.fecha_creacion.desc()
         ).all()
         
         tickets_data = []
         for ticket in tickets:
-            # Obtener información del creador y técnico asignado
-            creador = Usuario.query.get(ticket.creador_id) if ticket.creador_id else None
             tecnico = Usuario.query.get(ticket.asignado_id) if ticket.asignado_id else None
-            categoria = ticket.categoria
             
             tickets_data.append({
                 'id': ticket.id,
@@ -223,10 +241,15 @@ def get_tickets_by_usuario(usuario_id):
                 'fecha_resolucion': ticket.fecha_resolucion.isoformat() if ticket.fecha_resolucion else None,
                 'es_creador': ticket.creador_id == usuario_id,
                 'es_asignado': ticket.asignado_id == usuario_id,
-                'categoria': categoria,
+                'categoria': ticket.categoria,
+                'reparacion': ticket.reparacion,
+                'estacion': {
+                    'id': ticket.estacion_id,
+                    'nombre': ticket.estacion_nombre
+                } if ticket.estacion_id else None,
                 'creador': {
                     'id': ticket.creador_id,
-                    'nombre': creador.nombre if creador else 'Usuario eliminado'
+                    'nombre': ticket.creador_nombre,
                 },
                 'asignado': {
                     'id': ticket.asignado_id,
@@ -300,6 +323,7 @@ def create_ticket():
                 asignado_id = 1
         
         # Crear nuevo ticket
+        reparacion = data.get('reparacion', None)
         nuevo_ticket = Ticket(
             titulo=titulo,
             descripcion=descripcion,
@@ -309,7 +333,8 @@ def create_ticket():
             prioridad=prioridad,
             fecha_creacion=datetime.now(),
             fecha_resolucion=None,
-            categoria=categoria
+            categoria=categoria,
+            reparacion=reparacion
         )
         
         db.session.add(nuevo_ticket)
@@ -424,6 +449,8 @@ def update_ticket(ticket_id):
             ticket.descripcion = data['descripcion']
         if 'estado' in data:
             ticket.estado = data['estado']
+        if 'reparacion' in data:
+            ticket.reparacion = data['reparacion']
         if 'prioridad' in data:
             ticket.prioridad = data['prioridad']
         if 'asignado_id' in data:
