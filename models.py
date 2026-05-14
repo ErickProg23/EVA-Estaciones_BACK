@@ -320,3 +320,17 @@ class SolicitudMaterial(db.Model):
         self.estado = estado
         self.comentario = comentario
         self.fecha_solicitada = datetime.now()
+
+class ConfiguracionLitros(db.Model):
+    __tablename__ = 'configuraciones_litros'
+
+    id_estacion = db.Column('id_estacion', db.Integer, db.ForeignKey('estacion.id'), primary_key=True)
+    producto = db.Column(db.String(255), primary_key=True)
+    limite_max_litros = db.Column(db.Numeric(10, 2, asdecimal=True), nullable=True, default=0.0)
+
+    estacion = db.relationship('Estacion', backref='configuraciones_litros')
+
+    def __init__(self, id_estacion, producto, limite_max_litros=0.0):
+        self.id_estacion = id_estacion
+        self.producto = producto
+        self.limite_max_litros = limite_max_litros

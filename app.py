@@ -18,6 +18,7 @@ from routes.bombas import bombas_bp
 from routes.lecturas_manuales import lecturas_manuales
 from routes.materiales import materiales_bp
 from routes.solicitudes_material import solicitudes_bp
+from routes.configuraciones_litros import configuraciones_litros_bp
 
 
 
@@ -41,6 +42,7 @@ app.register_blueprint(bombas_bp)
 app.register_blueprint(lecturas_manuales)
 app.register_blueprint(materiales_bp)
 app.register_blueprint(solicitudes_bp)
+app.register_blueprint(configuraciones_litros_bp)
 
 
 
