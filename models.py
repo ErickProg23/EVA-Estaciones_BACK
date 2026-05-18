@@ -44,11 +44,16 @@ class Estacion(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     fecha_creacion = db.Column(db.DateTime, nullable=False)
     activo = db.Column(db.Boolean, default=True)
+    turnos_disponibles = db.Column(db.Integer, nullable=False)
+
+    #Relaciones
+    puestos = db.relationship('Puesto', backref='estacion')
 
     def __init__(self, nombre, fecha_creacion, activo=True):
         self.nombre = nombre
         self.fecha_creacion = fecha_creacion
         self.activo = activo
+        self.turnos_disponibles = 0
 
 class Puesto(db.Model):
     id = db.Column(db.Integer, primary_key=True)

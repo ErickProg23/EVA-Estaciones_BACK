@@ -151,3 +151,24 @@ def update_precio_producto(producto_id):
         return jsonify({'success': True, 'message': 'Precio actualizado correctamente', 'producto_id': producto.id, 'precio': producto.precio}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al actualizar precio del producto', 'error': str(e)}), 500
+
+@productos_bp.route('/api/getProductosByEstacion/<int:estacion_id>', methods=['GET'])
+def get_productos_by_estacion(estacion_id):
+    try:
+        estacion = Estacion.query.get(estacion_id)
+        if not estacion:
+            return jsonify({'success': False, 'message': 'Estación no encontrada'}), 404
+
+        productos = Producto.query.filter(Producto.estacion_id == estacion_id, Producto.activo == True).all()
+
+        data = [{
+            'id': p.id,
+            'nombre': p.nombre,
+            'precio': p.precio,
+            'estacion_id': p.estacion_id,
+            'activo': p.activo
+        } for p in productos]
+
+        return jsonify({'success': True, 'productos': data}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': 'Error al obtener productos de la estación', 'error': str(e)}), 500

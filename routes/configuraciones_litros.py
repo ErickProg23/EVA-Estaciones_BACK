@@ -12,11 +12,18 @@ def obtener_configuraciones_litros_estacion(estacion_id):
 
     configuraciones = ConfiguracionLitros.query.filter_by(id_estacion=estacion_id).all()
 
-    return jsonify([{
-        'estacion_id': configur.id_estacion,
-        'producto': configur.producto,
-        'limite_max_litros': float(configur.limite_max_litros) if configur.limite_max_litros is not None else None
-    } for configur in configuraciones]), 200
+    return jsonify({
+        'estacion': {
+            'id': estacion.id,
+            'nombre': estacion.nombre
+        },
+        'configuraciones': [{
+            'estacion_id': configur.id_estacion,
+            'producto': configur.producto,
+            'producto_nombre': configur.nombre,
+            'limite_max_litros': float(configur.limite_max_litros) if configur.limite_max_litros is not None else None
+        } for configur in configuraciones]
+    }), 200
 
 @configuraciones_litros_bp.route('/api/usuario/<int:usuario_id>', methods=['GET'])
 def obtener_configuraciones_litros_usuario(usuario_id):
@@ -33,12 +40,20 @@ def obtener_configuraciones_litros_usuario(usuario_id):
 
     configuraciones = ConfiguracionLitros.query.filter_by(id_estacion=usuario.estacion_id).all()
 
+    productos = Producto.query.filter_by(estacion_id=usuario.estacion_id).all()
+    
+
     return jsonify({
         'usuario_id': usuario.id,
         'estacion': {
             'id': estacion.id,
             'nombre': estacion.nombre
         },
+        'productos':
+        [{
+            'id': p.id,
+            'nombre': p.nombre,
+        } for p in productos],
         'configuraciones': [{
             'estacion_id': configur.id_estacion,
             'producto': configur.producto,
