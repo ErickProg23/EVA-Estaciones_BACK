@@ -17,17 +17,21 @@ def login():
 
     usuario = Usuario.query.filter_by(usuario=username).first()
 
-    if usuario and usuario.password == password:
-        # Generar token
-        token = jwt.encode({
-            'user_id': usuario.id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-        }, SECRET_KEY, algorithm='HS256')
-
-        return jsonify({'success': True, 'message': 'Login exitoso', 'token': token, 'estacion_id': usuario.estacion_id, 'rol_id': usuario.rol_id, 'usuario_id': usuario.id, 'nombre': usuario.nombre})
-
-    else:
+    if not usuario or usuario.password != password:
         return jsonify({'success': False, 'message': 'Credenciales incorrectas'}), 401
+
+    if not usuario.activo:
+        return jsonify({'success': False, 'message': 'Usuario inactivo'}), 403
+
+    if usuario.rol and hasattr(usuario.rol, 'activo') and not usuario.rol.activo:
+        return jsonify({'success': False, 'message': 'Rol inactivo'}), 403
+
+    token = jwt.encode({
+        'user_id': usuario.id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    }, SECRET_KEY, algorithm='HS256')
+
+    return jsonify({'success': True, 'message': 'Login exitoso', 'token': token, 'estacion_id': usuario.estacion_id, 'rol_id': usuario.rol_id, 'usuario_id': usuario.id, 'nombre': usuario.nombre, 'rol_nombre': usuario.rol.nombre})
 
 @usuarios_bp.route('/api/getUsuarios', methods=['GET'])
 def getUsuarios():
@@ -118,6 +122,7 @@ def updateUsuario(id):
         usuario.estacion_id = data.get('estacion_id', usuario.estacion_id)
         usuario.activo = data.get('activo', usuario.activo)
         usuario.correo = data.get('correo', usuario.correo)
+        usuario.activo = data.get('activo', usuario.activo)
 
         db.session.commit()  # <--- ESTO es lo que guarda los cambios en la base de datos
 

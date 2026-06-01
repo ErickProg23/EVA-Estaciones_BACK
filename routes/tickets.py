@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from models import db, Ticket, TicketComentario, Usuario, Estacion
+from models import db, Ticket, TicketComentario, Usuario, Estacion, Rol
 from datetime import datetime
 from sqlalchemy import func, and_, or_
 from dotenv import load_dotenv
@@ -351,13 +351,37 @@ def create_ticket():
             "ticket_id": nuevo_ticket.id,
             "url_ticket": os.getenv('APP_TICKET_URL', '#')
         }
-        sistema = Usuario.query.get(1)
-        destinatario = sistema.correo if sistema and getattr(sistema, 'correo', None) else os.getenv('SMTP_TO_DEFAULT')
         html_content = render_template("correo_ticket.html", **datos_ticket)
-        try:
-            threading.Thread(target=enviar_correo_ticket, args=(html_content, destinatario), daemon=True).start()
-        except Exception:
-            pass
+
+        admins = (Usuario.query
+            .join(Usuario.rol)
+            .filter(
+                Usuario.activo == True,
+                Rol.activo == True,
+                or_(
+                    Rol.nombre.ilike('%admin%'),
+                    Rol.nombre.ilike('%sistema%')
+                )
+            )
+            .all())
+
+        destinatarios = []
+        for u in admins:
+            correo = (u.correo or '').strip()
+            if correo and correo not in destinatarios:
+                destinatarios.append(correo)
+
+        if not destinatarios:
+            sistema = Usuario.query.get(1)
+            correo = sistema.correo if sistema and getattr(sistema, 'correo', None) else os.getenv('SMTP_TO_DEFAULT')
+            if correo:
+                destinatarios = [correo]
+
+        for dest in destinatarios:
+            try:
+                threading.Thread(target=enviar_correo_ticket, args=(html_content, dest), daemon=True).start()
+            except Exception:
+                pass
         
         return jsonify({
             'success': True,
@@ -714,8 +738,22 @@ def add_comentario(ticket_id):
 
     ticket = Ticket.query.get(ticket_id)
     autor = Usuario.query.get(usuario_id)
-    sistemas = Usuario.query.get(1)
     encargado = Usuario.query.get(ticket.creador_id) if ticket else None
+
+    admins = (Usuario.query
+        .join(Usuario.rol)
+        .filter(
+            Usuario.activo == True,
+            Rol.activo == True,
+            or_(
+                Rol.nombre.ilike('%admin%'),
+                Rol.nombre.ilike('%sistema%')
+            )
+        )
+        .all())
+
+    admin_ids = {u.id for u in admins}
+    autor_es_admin = bool(autor and autor.id in admin_ids)
 
     datos_email = {
         "ticket_id": ticket_id,
@@ -723,21 +761,37 @@ def add_comentario(ticket_id):
         "comentario": comentario,
         "autor_nombre": autor.nombre if autor else "Usuario",
         "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "nombre_destinatario": (encargado.nombre if autor and autor.id == 1 else "Área de Sistemas"),
+        "nombre_destinatario": (encargado.nombre if autor_es_admin and encargado else "Área de Sistemas"),
         "url_ticket": os.getenv("APP_TICKET_URL", "#"),
         "año": datetime.now().year
     }
 
-    destinatario = (
-        encargado.correo if (autor and autor.id == 1 and encargado and getattr(encargado, "correo", None))
-        else (sistemas.correo if (sistemas and getattr(sistemas, "correo", None)) else os.getenv("SMTP_TO_DEFAULT"))
-    )
+    destinatarios = []
+
+    for u in admins:
+        correo = (u.correo or '').strip()
+        if correo and correo not in destinatarios:
+            destinatarios.append(correo)
+
+    if autor_es_admin and encargado and getattr(encargado, 'correo', None):
+        correo_encargado = (encargado.correo or '').strip()
+        if correo_encargado and correo_encargado not in destinatarios:
+            destinatarios.append(correo_encargado)
+
+    if not destinatarios:
+        sistemas = Usuario.query.get(1)
+        correo = sistemas.correo if sistemas and getattr(sistemas, 'correo', None) else os.getenv('SMTP_TO_DEFAULT')
+        if correo:
+            destinatarios = [correo]
+
     asunto = "Nuevo comentario en el ticket"
     html = render_template("correo_comentarioTickets.html", **datos_email)
-    try:
-        threading.Thread(target=enviar_correo_comentario, args=(destinatario, asunto, html), daemon=True).start()
-    except Exception:
-        pass
+
+    for dest in destinatarios:
+        try:
+            threading.Thread(target=enviar_correo_comentario, args=(dest, asunto, html), daemon=True).start()
+        except Exception:
+            pass
 
     return jsonify({'success': True}), 200
 

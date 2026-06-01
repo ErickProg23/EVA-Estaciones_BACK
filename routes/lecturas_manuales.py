@@ -91,13 +91,49 @@ def guardar_lectura_manual():
         if not bomba:
             return jsonify({'success': False, 'message': 'Bomba no encontrada'}), 404
 
+        numero_bomba_val = None
+        for cand in [numero_bomba_input, getattr(bomba, 'numero_bomba', None), bomba_id, getattr(bomba, 'id', None)]:
+            if cand is None:
+                continue
+            try:
+                numero_bomba_val = int(str(cand))
+                break
+            except Exception:
+                continue
+
+        if numero_bomba_val is None:
+            return jsonify({'success': False, 'message': 'Número de bomba inválido'}), 400
+
+        try:
+            producto_final = int(bomba.producto_id) if bomba and bomba.producto_id is not None else (int(producto_id) if producto_id is not None else None)
+        except Exception:
+            return jsonify({'success': False, 'message': 'producto_id inválido'}), 400
+
+        if producto_final is None:
+            return jsonify({'success': False, 'message': 'No se pudo determinar el producto de la bomba'}), 400
+
+        existe = LecturaManual.query.filter(
+            LecturaManual.estacion_id == estacion_id,
+            func.date(LecturaManual.fecha) == fecha_dt.date(),
+            LecturaManual.turno == int(turno),
+            LecturaManual.numero_bomba == numero_bomba_val,
+            LecturaManual.producto_id == producto_final
+        ).first()
+
+        if existe:
+            return jsonify({
+                'success': False,
+                'message': 'Ya existe una lectura para esa estación, fecha, turno y bomba',
+                'lectura_existente_id': existe.id
+            }), 409
+
         lectura_manual = LecturaManual(
-            numero_bomba=numero_bomba_input,
+            numero_bomba=numero_bomba_val,
             fecha=fecha_dt,
             turno=int(turno),
             estacion_id=estacion_id,
             cantidad=cantidad,
-            producto_id=bomba.producto_id if bomba else producto_id
+            producto_id=producto_final
         )
         db.session.add(lectura_manual)
         db.session.commit()
@@ -111,8 +147,8 @@ def guardar_lectura_manual():
         return jsonify({'success': True, 'message': 'Lectura guardada correctamente', 'lectura': {
             'id': lectura_manual.id,
             'bomba_id': bomba.id,
-            'numero_bomba': numero_bomba_input,
-            'producto_id': bomba.producto_id,
+            'numero_bomba': bomba.numero_bomba if bomba else numero_bomba_input,
+            'producto_id': producto_final,
             'fecha': lectura_manual.fecha.isoformat(),
             'turno': lectura_manual.turno,
             'estacion_id': lectura_manual.estacion_id,
