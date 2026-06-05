@@ -29,7 +29,10 @@ def createEstacion():
         fecha_creacion = datetime.datetime.now()
         if not nombre:
             return jsonify({'success': False, 'message': 'El nombre de la estacion es obligatorio'}), 400
-        turnos_disponibles = data.get('turnos_disponibles', 0)
+        try:
+            turnos_disponibles = int(data.get('turnos_disponibles'))
+        except Exception:
+            return jsonify({'success': False, 'message': 'turnos_disponibles inválido'}), 400
         estacion = Estacion(nombre=nombre, activo=activo, fecha_creacion=fecha_creacion, turnos_disponibles=turnos_disponibles)
         db.session.add(estacion)
         db.session.commit()

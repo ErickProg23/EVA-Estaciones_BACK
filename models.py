@@ -49,7 +49,7 @@ class Estacion(db.Model):
     #Relaciones
     puestos = db.relationship('Puesto', backref='estacion')
 
-    def __init__(self, nombre, fecha_creacion, activo=True):
+    def __init__(self, nombre, fecha_creacion, turnos_disponibles=0, activo=True):
         self.nombre = nombre
         self.fecha_creacion = fecha_creacion
         self.activo = activo

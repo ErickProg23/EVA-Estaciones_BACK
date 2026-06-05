@@ -12,7 +12,7 @@ def getPuestos():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud', 'error': str(e)}), 500
 
-@puestos_bp.route('/api/newPuesto', methods=['POST'])
+@puestos_bp.route('/newPuesto', methods=['POST'])
 def newPuesto():
     try:
         data = request.get_json()
@@ -28,7 +28,7 @@ def newPuesto():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud', 'error': str(e)}), 500
 
-@puestos_bp.route('/api/updatePuesto/<int:puesto_id>', methods=['PUT'])
+@puestos_bp.route('/updatePuesto/<int:puesto_id>', methods=['PUT'])
 def updatePuesto(puesto_id):
     try:
         data = request.get_json()
@@ -49,7 +49,7 @@ def updatePuesto(puesto_id):
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud', 'error': str(e)}), 500
 
 
-@puestos_bp.route('/api/deletePuesto/<int:puesto_id>', methods=['DELETE'])
+@puestos_bp.route('/deletePuesto/<int:puesto_id>', methods=['DELETE'])
 def deletePuesto(puesto_id):
     try:
         puesto = Puesto.query.get(puesto_id)
