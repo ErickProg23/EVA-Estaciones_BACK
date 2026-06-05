@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 configuraciones_litros_bp = Blueprint('configuraciones_litros', __name__)
 
-@configuraciones_litros_bp.route('/api/estacion/<int:estacion_id>', methods=['GET'])
+@configuraciones_litros_bp.route('/estacion/<int:estacion_id>', methods=['GET'])
 def obtener_configuraciones_litros_estacion(estacion_id):
     estacion = Estacion.query.get(estacion_id)
     if not estacion:
@@ -25,7 +25,7 @@ def obtener_configuraciones_litros_estacion(estacion_id):
         } for configur in configuraciones]
     }), 200
 
-@configuraciones_litros_bp.route('/api/usuario/<int:usuario_id>', methods=['GET'])
+@configuraciones_litros_bp.route('/usuario/<int:usuario_id>', methods=['GET'])
 def obtener_configuraciones_litros_usuario(usuario_id):
     usuario = Usuario.query.get(usuario_id)
     if not usuario:

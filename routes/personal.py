@@ -4,7 +4,7 @@ import jwt, datetime
 
 personal_bp = Blueprint('personal', __name__)
 
-@personal_bp.route('/api/getPersonal', methods=['GET'])
+@personal_bp.route('/getPersonal', methods=['GET'])
 def getPersonal():
     try:
         personal = Empleado.query.all()
@@ -24,7 +24,7 @@ def getPersonal():
     except Exception as e:
          return jsonify({'error': str(e)}), 500
 
-@personal_bp.route('/api/newPersonal', methods=['POST'])
+@personal_bp.route('/newPersonal', methods=['POST'])
 def newPersonal():
     try:
         data = request.get_json()
@@ -54,7 +54,7 @@ def newPersonal():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud', 'error': str(e)}), 500
     
-@personal_bp.route('/api/updateEmpleado/<int:id>', methods=['PUT'])
+@personal_bp.route('/updateEmpleado/<int:id>', methods=['PUT'])
 def updateEmpleado(id):
     try:
         data = request.get_json()
@@ -92,7 +92,7 @@ def updateEmpleado(id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud', 'error': str(e)}), 500
 
-@personal_bp.route('/api/deleteEmpleado/<int:id>', methods=['PUT'])
+@personal_bp.route('/deleteEmpleado/<int:id>', methods=['PUT'])
 def deleteEmpleado(id):
     try:
         # Verificar que el empleado a desactivar existe

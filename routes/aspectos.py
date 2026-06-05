@@ -5,7 +5,7 @@ import jwt, datetime
 
 aspecto_bp = Blueprint('aspecto', __name__)
 
-@aspecto_bp.route('/api/getAspectos', methods=['GET'])
+@aspecto_bp.route('/getAspectos', methods=['GET'])
 def get_aspectos():
     try:
         aspectos = Aspecto.query.all()
@@ -20,8 +20,8 @@ def get_aspectos():
         return jsonify(aspectos_list), 200
     except Exception as e:
         return jsonify({'message': 'Error al obtener los aspectos', 'error': str(e)}), 500
-
-@aspecto_bp.route('/api/getAspectosByPuesto/<int:puesto_id>', methods=['GET'])
+    
+@aspecto_bp.route('/getAspectosByPuesto/<int:puesto_id>', methods=['GET'])
 def get_aspectos_by_puesto(puesto_id):
     try:
         aspectos_puesto = db.session.query(Aspecto, PuestoAspecto).outerjoin(
@@ -45,7 +45,7 @@ def get_aspectos_by_puesto(puesto_id):
     except Exception as e:
         return jsonify({'message': 'Error al obtener los aspectos del puesto', 'error': str(e)}), 500
 
-@aspecto_bp.route('/api/newAspecto', methods=['POST'])
+@aspecto_bp.route('/newAspecto', methods=['POST'])
 def newAspecto():
     try:
         data = request.get_json()
@@ -69,7 +69,7 @@ def newAspecto():
     except Exception as e:
         return jsonify({'message': 'Error al crear el aspecto', 'error': str(e)}), 500
 
-@aspecto_bp.route('/api/asignarAspectoAPuesto', methods=['POST'])
+@aspecto_bp.route('/asignarAspectoAPuesto', methods=['POST'])
 def asignar_aspecto_a_puesto():
     try:
         data = request.get_json()
@@ -96,7 +96,7 @@ def asignar_aspecto_a_puesto():
     except Exception as e:
         return jsonify({'message': 'Error al asignar aspecto al puesto', 'error': str(e)}), 500
 
-@aspecto_bp.route('/api/updateAspecto', methods=['PUT'])
+@aspecto_bp.route('/updateAspecto', methods=['PUT'])
 def updateAspecto():
     try:
         data = request.get_json()
@@ -125,7 +125,7 @@ def updateAspecto():
     except Exception as e:
         return jsonify({'message': 'Error al actualizar el aspecto', 'error': str(e)}), 500
 
-@aspecto_bp.route('/api/updatePesoAspectoPuesto', methods=['PUT'])
+@aspecto_bp.route('/updatePesoAspectoPuesto', methods=['PUT'])
 def update_peso_aspecto_puesto():
     try:
         data = request.get_json()
@@ -134,7 +134,7 @@ def update_peso_aspecto_puesto():
         nuevo_peso = data.get('peso')
         
         if not all([puesto_id, aspecto_id, nuevo_peso is not None]):
-            return jsonify({'success': False, 'message': 'Faltan datos'}), 400
+            return jsonify({'message': 'Faltan datos'}), 400
             
         puesto_aspecto = PuestoAspecto.query.filter_by(
             puesto_id=puesto_id,
@@ -163,7 +163,7 @@ def update_peso_aspecto_puesto():
         return jsonify({'success': False, 'message': 'Error al procesar el peso', 'error': str(e)}), 500
 
 
-@aspecto_bp.route('/api/getAspectosPorPuestoEspecifico/<int:puesto_id>', methods=['GET'])
+@aspecto_bp.route('/getAspectosPorPuestoEspecifico/<int:puesto_id>', methods=['GET'])
 def get_aspectos_por_puesto_especifico(puesto_id):
     """Obtiene los aspectos de un puesto específico"""
     try:

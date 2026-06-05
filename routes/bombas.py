@@ -4,7 +4,7 @@ from sqlalchemy import or_
 
 bombas_bp = Blueprint('bombas', __name__)
 
-@bombas_bp.route('/api/getBombas', methods=['GET'])
+@bombas_bp.route('/getBombas', methods=['GET'])
 def get_bombas():
     try:
         bombas = Bomba.query.all()
@@ -17,7 +17,7 @@ def get_bombas():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al obtener bombas', 'error': str(e)}), 500
 
-@bombas_bp.route('/api/newBomba', methods=['POST'])
+@bombas_bp.route('/newBomba', methods=['POST'])
 def new_bomba():
     try:
         data = request.get_json() or {}
@@ -40,7 +40,7 @@ def new_bomba():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al crear bomba', 'error': str(e)}), 500
 
-@bombas_bp.route('/api/updateBomba/<int:bomba_id>', methods=['PUT'])
+@bombas_bp.route('/updateBomba/<int:bomba_id>', methods=['PUT'])
 def update_bomba(bomba_id):
     try:
         bomba = Bomba.query.get(bomba_id)
@@ -68,7 +68,7 @@ def update_bomba(bomba_id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al actualizar bomba', 'error': str(e)}), 500
 
-@bombas_bp.route('/api/deleteBomba/<int:bomba_id>', methods=['DELETE'])
+@bombas_bp.route('/deleteBomba/<int:bomba_id>', methods=['DELETE'])
 def delete_bomba(bomba_id):
     try:
         bomba = Bomba.query.get(bomba_id)
@@ -82,7 +82,7 @@ def delete_bomba(bomba_id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al eliminar bomba', 'error': str(e)}), 500
 
-@bombas_bp.route('/api/getBombasByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
+@bombas_bp.route('/getBombasByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
 def get_bombas_by_usuario_estacion(usuario_id):
     try:
         usuario = Usuario.query.get(usuario_id)

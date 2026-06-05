@@ -3,7 +3,7 @@ from models import db, Material, EstacionMaterial, Estacion
 
 materiales_bp = Blueprint('materiales', __name__)
 
-@materiales_bp.route('/api/materiales/obtener', methods=['GET'])
+@materiales_bp.route('/materiales/obtener', methods=['GET'])
 def get_materiales():
     try:
         materiales = Material.query.filter_by(activo=True).all()
@@ -15,7 +15,7 @@ def get_materiales():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@materiales_bp.route('/api/materiales/crear', methods=['POST'])
+@materiales_bp.route('/materiales/crear', methods=['POST'])
 def create_material():
     try:
         data = request.json
@@ -34,7 +34,7 @@ def create_material():
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
 
-@materiales_bp.route('/api/materiales/estacion/<int:estacion_id>', methods=['GET'])
+@materiales_bp.route('/materiales/estacion/<int:estacion_id>', methods=['GET'])
 def get_materiales_estacion(estacion_id):
     try:
         # Obtener materiales asignados a la estación
@@ -55,7 +55,7 @@ def get_materiales_estacion(estacion_id):
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@materiales_bp.route('/api/materiales/asignar', methods=['POST'])
+@materiales_bp.route('/materiales/asignar', methods=['POST'])
 def asignar_material():
     try:
         data = request.json
@@ -96,7 +96,7 @@ def asignar_material():
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
 
-@materiales_bp.route('/api/materiales/stock', methods=['PUT'])
+@materiales_bp.route('/materiales/stock', methods=['PUT'])
 def update_stock():
     try:
         data = request.json
@@ -124,7 +124,7 @@ def update_stock():
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
 
-@materiales_bp.route('/api/materiales/desasignar', methods=['POST'])
+@materiales_bp.route('/materiales/desasignar', methods=['POST'])    
 def desasignar_material():
     try:
         data = request.json

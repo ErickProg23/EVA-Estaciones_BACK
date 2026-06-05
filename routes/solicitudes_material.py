@@ -47,7 +47,7 @@ def enviar_correo_async(destinatario, asunto, html_content):
     except Exception as e:
         print(f"Error enviando correo: {e}")
 
-@solicitudes_bp.route('/api/solicitudes/crear', methods=['POST'])
+@solicitudes_bp.route('/solicitudes/crear', methods=['POST'])
 def create_solicitud():
     try:
         data = request.json
@@ -116,7 +116,7 @@ def create_solicitud():
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
 
-@solicitudes_bp.route('/api/solicitudes', methods=['GET'])
+@solicitudes_bp.route('/solicitudes', methods=['GET'])
 def get_solicitudes():
     try:
         estacion_id = request.args.get('estacion_id')
@@ -156,7 +156,7 @@ def get_solicitudes():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@solicitudes_bp.route('/api/solicitudes/<int:id>/estado', methods=['PUT'])
+@solicitudes_bp.route('/solicitudes/<int:id>/estado', methods=['PUT'])
 def update_solicitud_status(id):
     try:
         data = request.json
@@ -220,7 +220,7 @@ def update_solicitud_status(id):
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
 
-@solicitudes_bp.route('/api/solicitudes/<int:id>/confirmar', methods=['POST'])
+@solicitudes_bp.route('/solicitudes/<int:id>/confirmar', methods=['POST'])
 def confirmar_recepcion(id):
     try:
         solicitud = SolicitudMaterial.query.get(id)

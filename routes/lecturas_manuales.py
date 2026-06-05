@@ -8,7 +8,7 @@ from sqlalchemy import func
 
 lecturas_manuales = Blueprint('lecturas_manuales', __name__)
 
-@lecturas_manuales.route('/api/getUltimaLecturaManualByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
+@lecturas_manuales.route('/getUltimaLecturaManualByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
 def get_ultima_lectura_manual(usuario_id):
     try:
         usuario = Usuario.query.get(usuario_id)
@@ -36,7 +36,7 @@ def get_ultima_lectura_manual(usuario_id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al obtener última lectura', 'error': str(e)}), 500
 
-@lecturas_manuales.route('/api/guardarLecturaManual', methods=['POST'])
+@lecturas_manuales.route('/guardarLecturaManual', methods=['POST'])
 def guardar_lectura_manual():
     try:
         data = request.get_json() or {}
@@ -158,7 +158,7 @@ def guardar_lectura_manual():
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Error al guardar la lectura', 'error': str(e)}), 500
 
-@lecturas_manuales.route('/api/getLecturasManualUltimas/<int:estacion_id>', methods=['GET'])
+@lecturas_manuales.route('/getLecturasManualUltimas/<int:estacion_id>', methods=['GET'])
 def get_lecturas_manual_ultimas(estacion_id):
     try:
         fecha_str = request.args.get('fecha')
@@ -233,7 +233,7 @@ def prev_turno_fecha(fecha_str, turno):
         return d, int(turno) - 1
     return d - datetime.timedelta(days=1), 3
 
-@lecturas_manuales.route('/api/getLecturasManualDiferencias/<int:estacion_id>')
+@lecturas_manuales.route('/getLecturasManualDiferencias/<int:estacion_id>', methods=['GET'])
 def get_lecturas_manual_diferencias(estacion_id):
     fecha_str = request.args.get('fecha')
     turno = request.args.get('turno', type=int)
@@ -287,7 +287,7 @@ def get_lecturas_manual_diferencias(estacion_id):
 
     return jsonify({'success': True, 'lecturas': data}), 200
 
-@lecturas_manuales.route('/api/saveComparativaTotales', methods=['POST'])
+@lecturas_manuales.route('/saveComparativaTotales', methods=['POST'])
 def save_comparativa_totales():
     try:
         data = request.get_json()
@@ -342,7 +342,7 @@ def save_comparativa_totales():
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Error al guardar totales', 'error': str(e)}), 500
 
-@lecturas_manuales.route('/api/getComparativaTotales/<int:estacion_id>', methods=['GET'])
+@lecturas_manuales.route('/getComparativaTotales/<int:estacion_id>', methods=['GET'])
 def get_comparativa_totales(estacion_id):
     try:
         fecha_str = request.args.get('fecha')

@@ -5,7 +5,7 @@ from datetime import datetime
 
 evaluacion_bp = Blueprint('evaluacion', __name__)
 
-@evaluacion_bp.route('/api/getEmpleadosByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
+@evaluacion_bp.route('/getEmpleadosByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
 def get_empleados_by_usuario_estacion(usuario_id):
     try:
         # 1. Verificar que el usuario existe
@@ -107,7 +107,7 @@ def get_empleados_by_usuario_estacion(usuario_id):
             'error': str(e)
         }), 500
 
-@evaluacion_bp.route('/api/getEmpleadosByUsuarioEstacionResumen/<int:usuario_id>', methods=['GET'])
+@evaluacion_bp.route('/getEmpleadosByUsuarioEstacionResumen/<int:usuario_id>', methods=['GET'])
 def get_empleados_by_usuario_estacion_resumen(usuario_id):
     """Versión resumida que solo devuelve estadísticas"""
     try:
@@ -183,7 +183,7 @@ def get_empleados_by_usuario_estacion_resumen(usuario_id):
             'error': str(e)
         }), 500
 
-@evaluacion_bp.route('/api/finalizarEvaluacionPuesto', methods=['POST'])
+@evaluacion_bp.route('/finalizarEvaluacionPuesto', methods=['POST'])
 def finalizar_evaluacion_puesto():
     try:
         data = request.get_json()
@@ -359,7 +359,7 @@ def finalizar_evaluacion_puesto():
             'error': str(e)
         }), 500
 
-@evaluacion_bp.route('/api/getEvaluacionesPuesto/<int:usuario_id>/<int:puesto_id>', methods=['GET'])
+@evaluacion_bp.route('/getEvaluacionesPuesto/<int:usuario_id>/<int:puesto_id>', methods=['GET'])
 def get_evaluaciones_puesto(usuario_id, puesto_id):
     try:
         # Verificar que el usuario existe

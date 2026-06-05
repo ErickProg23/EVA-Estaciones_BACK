@@ -4,7 +4,7 @@ import jwt, datetime
 
 rol_bp = Blueprint('rol', __name__)
 
-@rol_bp.route('/api/getRoles', methods=['GET'])
+@rol_bp.route('/getRoles', methods=['GET'])
 def getRoles():
     try:
         roles = Rol.query.all()
@@ -20,7 +20,7 @@ def getRoles():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@rol_bp.route('/api/createRol', methods=['POST'])
+@rol_bp.route('/roles/crear', methods=['POST'])
 def createRol():
     try:
         data = request.get_json()
@@ -39,7 +39,7 @@ def createRol():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@rol_bp.route('/api/updateRol/<int:id>', methods=['PUT'])
+@rol_bp.route('/roles/<int:id>', methods=['PUT'])
 def updateRol(id):
     try:
         rol = Rol.query.get(id)
@@ -48,9 +48,9 @@ def updateRol(id):
         data = request.get_json()
         if data.get('nombre') is not None:
             rol.nombre = data.get('nombre')
-        if 'descripcion' in data:
+        if data.get('descripcion') is not None:
             rol.descripcion = data.get('descripcion')
-        if 'activo' in data:
+        if data.get('activo') is not None:
             rol.activo = data.get('activo')
         db.session.commit()
         return jsonify({'success': True, 'rol': {'id': rol.id, 'nombre': rol.nombre, 'descripcion': rol.descripcion, 'activo': rol.activo}}), 200

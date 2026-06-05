@@ -4,7 +4,7 @@ import jwt, datetime
 
 puestos_bp = Blueprint('puestos', __name__)
 
-@puestos_bp.route('/api/getPuestos', methods=['GET'])
+@puestos_bp.route('/getPuestos', methods=['GET'])
 def getPuestos():
     try:
         puestos = Puesto.query.all()

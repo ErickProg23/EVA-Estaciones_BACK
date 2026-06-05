@@ -5,7 +5,7 @@ from sqlalchemy import func, and_, extract
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
-@dashboard_bp.route('/api/getMetricasEstacion/<int:usuario_id>', methods=['GET'])
+@dashboard_bp.route('/getMetricasEstacion/<int:usuario_id>', methods=['GET'])
 def get_metricas_estacion(usuario_id):
     try:
         # Obtener el usuario y su estación
@@ -120,7 +120,7 @@ def get_metricas_estacion(usuario_id):
             "error": f"Error al obtener métricas: {str(e)}"
         }), 500
 
-@dashboard_bp.route('/api/getInfoEstacion/<int:usuario_id>', methods=['GET'])
+@dashboard_bp.route('/getInfoEstacion/<int:usuario_id>', methods=['GET'])
 def get_info_estacion(usuario_id):
     try:
         # Obtener el usuario
@@ -183,7 +183,7 @@ def get_info_estacion(usuario_id):
             "error": f"Error al obtener información de estación: {str(e)}"
         }), 500
 
-@dashboard_bp.route('/api/getActividadReciente/<int:usuario_id>', methods=['GET'])
+@dashboard_bp.route('/getActividadReciente/<int:usuario_id>', methods=['GET'])
 def get_actividad_reciente(usuario_id):
     try:
         # Get user's station
@@ -255,7 +255,7 @@ def get_actividad_reciente(usuario_id):
             "error": f"Error al obtener actividad reciente: {str(e)}"
         }), 500
 
-@dashboard_bp.route('/api/getEmpleadosEnEstacion/<int:usuario_id>', methods=['GET'])
+@dashboard_bp.route('/getEmpleadosEnEstacion/<int:usuario_id>', methods=['GET'])
 def get_empleados_estacion(usuario_id):
     try:
         usuario = Usuario.query.get(usuario_id)
@@ -293,7 +293,7 @@ def get_empleados_estacion(usuario_id):
     except Exception as e:
         return jsonify({"success": False, "error": f"Error al obtener empleados por puesto: {str(e)}"}), 500
 
-@dashboard_bp.route('/api/getRendimientoMensual/<int:usuario_id>', methods=['GET'])
+@dashboard_bp.route('/getRendimientoMensual/<int:usuario_id>', methods=['GET'])
 def get_rendimiento_mensual(usuario_id):
     try:
         usuario = Usuario.query.get(usuario_id)
@@ -344,7 +344,7 @@ def get_rendimiento_mensual(usuario_id):
     except Exception as e:
         return jsonify({"success": False, "error": f"Error al obtener rendimiento mensual: {str(e)}"}), 500
 
-@dashboard_bp.route('/api/getAlertas/<int:usuario_id>', methods=['GET'])
+@dashboard_bp.route('/getAlertas/<int:usuario_id>', methods=['GET'])
 def get_alertas(usuario_id):
     try:
         usuario = Usuario.query.get(usuario_id)

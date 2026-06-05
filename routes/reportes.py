@@ -5,7 +5,7 @@ from sqlalchemy import func, and_, or_
 
 reportes_bp = Blueprint('reportes', __name__)  
 
-@reportes_bp.route('/api/getReportesEstaciones', methods=['GET'])
+@reportes_bp.route('/getReportesEstaciones', methods=['GET'])
 def get_reportes_estaciones():
     try:
         # Query corregida para compatibilidad con ONLY_FULL_GROUP_BY

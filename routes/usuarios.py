@@ -8,7 +8,7 @@ SECRET_KEY = 'mi_clave_secreta_segura'  # Usa una más segura y guárdala como v
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
-@usuarios_bp.route('/api/login', methods=['POST'])
+@usuarios_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -33,7 +33,7 @@ def login():
 
     return jsonify({'success': True, 'message': 'Login exitoso', 'token': token, 'estacion_id': usuario.estacion_id, 'rol_id': usuario.rol_id, 'usuario_id': usuario.id, 'nombre': usuario.nombre, 'rol_nombre': usuario.rol.nombre})
 
-@usuarios_bp.route('/api/getUsuarios', methods=['GET'])
+@usuarios_bp.route('/getUsuarios', methods=['GET'])
 def getUsuarios():
     try:
         usuarios = Usuario.query.all()
@@ -62,7 +62,7 @@ def getUsuarios():
         return jsonify({'success': False, 'message': 'Error al obtener los usuarios', 'error': str(e)}), 500
 
 
-@usuarios_bp.route('/api/newUsuario', methods=['POST'])
+@usuarios_bp.route('/newUsuario', methods=['POST'])
 def newUsuario():
     data = request.get_json()
     print(data)
@@ -107,7 +107,7 @@ def newUsuario():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud', 'error': str(e)}), 500
 
-@usuarios_bp.route('/api/updateUsuario/<int:id>', methods=['PUT'])
+@usuarios_bp.route('/updateUsuario/<int:id>', methods=['PUT'])
 def updateUsuario(id):
     try:
         usuario = Usuario.query.get(id)

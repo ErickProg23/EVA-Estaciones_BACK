@@ -4,7 +4,7 @@ from sqlalchemy import or_
 
 productos_bp = Blueprint('productos', __name__)
 
-@productos_bp.route('/api/getProductos', methods=['GET'])
+@productos_bp.route('/getProductos', methods=['GET'])
 def get_productos():
     try:
         productos = Producto.query.all()
@@ -29,7 +29,7 @@ def get_productos():
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al obtener productos', 'error': str(e)}), 500
 
-@productos_bp.route('/api/updateProducto/<int:producto_id>', methods=['PUT'])
+@productos_bp.route('/updateProducto/<int:producto_id>', methods=['PUT'])
 def update_producto(producto_id):
     try:
         producto = Producto.query.get(producto_id)
@@ -77,7 +77,7 @@ def update_producto(producto_id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al actualizar el producto', 'error': str(e)}), 500
 
-@productos_bp.route('/api/getProductosByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
+@productos_bp.route('/getProductosByUsuarioEstacion/<int:usuario_id>', methods=['GET'])
 def get_productos_by_usuario_estacion(usuario_id):
     try:
         usuario = Usuario.query.get(usuario_id)
@@ -115,7 +115,7 @@ def get_productos_by_usuario_estacion(usuario_id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al obtener productos de la estación', 'error': str(e)}), 500
 
-@productos_bp.route('/api/updatePrecioProducto/<int:producto_id>', methods=['PUT'])
+@productos_bp.route('/updatePrecioProducto/<int:producto_id>', methods=['PUT'])
 def update_precio_producto(producto_id):
     try:
         data = request.get_json() or {}
@@ -152,7 +152,7 @@ def update_precio_producto(producto_id):
     except Exception as e:
         return jsonify({'success': False, 'message': 'Error al actualizar precio del producto', 'error': str(e)}), 500
 
-@productos_bp.route('/api/getProductosByEstacion/<int:estacion_id>', methods=['GET'])
+@productos_bp.route('/getProductosByEstacion/<int:estacion_id>', methods=['GET'])
 def get_productos_by_estacion(estacion_id):
     try:
         estacion = Estacion.query.get(estacion_id)
