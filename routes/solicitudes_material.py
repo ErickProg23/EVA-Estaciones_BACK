@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
-from models import db, SolicitudMaterial, EstacionMaterial, Material, Usuario, Estacion
+from models import db, SolicitudMaterial, EstacionMaterial, Material, Usuario, Estacion, Rol
 from datetime import datetime
 import os, smtplib, threading
 from email.mime.text import MIMEText
@@ -99,11 +99,30 @@ def create_solicitud():
                     comentario=solicitud_full.comentario or "Sin comentarios"
                 )
                 
-                destinatario = SMTP_TO_DEFAULT or "soportesistemas@estacioneslapopular.com" 
-                print(f"Iniciando envío de correo a: {destinatario}")
-                
-                # Enviar en hilo aparte
-                threading.Thread(target=enviar_correo_async, args=(destinatario, "Nueva Solicitud de Material", html_content)).start()
+                admins =  (Usarios.query
+                        .join(Usuario.rol)
+                        .filter(
+                            Usuario.activo == True,
+                            Rol.activo == True,
+                            Rol.nombre.ilike('%administrador')
+                        ).all())
+
+                destinatarios = []
+                for u in admins:
+                    correo = (u.correo or '').strip
+                    ()
+                    if correo and correo not in destinatarios:
+                        destinatarios.append(correo)
+                if not destinatarios:
+                    fallback= (SMTP_TO_DEFAULT or "soportesistemas@estacioneslapopular.com")
+                    if fallback: 
+                        destinatarios = [fallback]
+
+                for dest in destinatarios:
+                    threading.Thread(
+                        target=enviar_correo_async, args=(dest, "Nueva solicitud de material", html_content)
+                    ).start()
+
             else:
                 print("No se pudo obtener la solicitud completa para el correo.")
         except Exception as e:
