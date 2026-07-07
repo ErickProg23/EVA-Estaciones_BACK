@@ -211,8 +211,21 @@ def finalizar_evaluacion_puesto():
         
         # Establecer fecha de evaluación en backend (hora del servidor)
         fecha_evaluacion = datetime.now()
-        mes = fecha_evaluacion.month
-        anio = fecha_evaluacion.year
+
+        # Solo permitir del día 1 al 15
+        if fecha_evaluacion.day > 15:
+            return jsonify({
+                'success': False,
+                'message': 'La evaluación solo puede realizarse del día 1 al 15 de cada mes.'
+            }), 400
+
+        # Siempre evaluar el mes anterior
+        if fecha_evaluacion.month == 1:
+            mes = 12
+            anio = fecha_evaluacion.year - 1
+        else:
+            mes = fecha_evaluacion.month - 1
+            anio = fecha_evaluacion.year
         
         # Verificar que el puesto existe
         puesto = Puesto.query.get(puesto_id)
