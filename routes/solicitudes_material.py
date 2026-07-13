@@ -99,7 +99,7 @@ def create_solicitud():
                     comentario=solicitud_full.comentario or "Sin comentarios"
                 )
                 
-                admins =  (Usarios.query
+                admins =  (Usuarios.query
                         .join(Usuario.rol)
                         .filter(
                             Usuario.activo == True,
@@ -109,8 +109,7 @@ def create_solicitud():
 
                 destinatarios = []
                 for u in admins:
-                    correo = (u.correo or '').strip
-                    ()
+                    correo = (u.correo or '').strip()
                     if correo and correo not in destinatarios:
                         destinatarios.append(correo)
                 if not destinatarios:
