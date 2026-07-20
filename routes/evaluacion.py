@@ -372,6 +372,112 @@ def finalizar_evaluacion_puesto():
             'error': str(e)
         }), 500
 
+@evaluacion_bp.route('/getDetalleEvaluacionIndividual', methods=['GET'])
+def get_detalle_evaluacion_individual():
+    try:
+        empleado_id = request.args.get('empleado_id', type=int)
+        mes = request.args.get('mes', type=int)
+        anio = request.args.get('anio', type=int)
+
+        if not empleado_id or not mes or not anio:
+            return jsonify({
+                'success': False,
+                'message': 'Parámetros requeridos: empleado_id, mes y anio'
+            }), 400
+
+        empleado = db.session.query(
+            Empleado.id,
+            Empleado.nombre,
+            Empleado.puesto_id,
+            Empleado.estacion_id,
+            Puesto.nombre.label('puesto_nombre'),
+            Estacion.nombre.label('estacion_nombre')
+        ).outerjoin(
+            Puesto, Empleado.puesto_id == Puesto.id
+        ).outerjoin(
+            Estacion, Empleado.estacion_id == Estacion.id
+        ).filter(
+            Empleado.id == empleado_id
+        ).first()
+
+        if not empleado:
+            return jsonify({
+                'success': False,
+                'message': 'Empleado no encontrado'
+            }), 404
+
+        evaluacion = Evaluacion.query.filter_by(
+            empleado_id=empleado_id,
+            mes=mes,
+            anio=anio
+        ).first()
+
+        if not evaluacion:
+            return jsonify({
+                'success': False,
+                'message': 'No se encontró evaluación para el empleado y periodo indicado'
+            }), 404
+
+        detalles_rows = db.session.query(
+            Detalle_Evaluacion.aspecto_id,
+            Aspecto.nombre.label('aspecto_nombre'),
+            PuestoAspecto.peso,
+            Detalle_Evaluacion.calificacion
+        ).join(
+            Aspecto, Detalle_Evaluacion.aspecto_id == Aspecto.id
+        ).outerjoin(
+            PuestoAspecto,
+            (PuestoAspecto.aspecto_id == Detalle_Evaluacion.aspecto_id) &
+            (PuestoAspecto.puesto_id == empleado.puesto_id)
+        ).filter(
+            Detalle_Evaluacion.evaluacion_id == evaluacion.id
+        ).all()
+
+        detalles = []
+        for row in detalles_rows:
+            peso = float(row.peso) if row.peso is not None else 0
+            calificacion = float(row.calificacion) if row.calificacion is not None else 0
+            detalles.append({
+                'aspecto_id': row.aspecto_id,
+                'aspecto_nombre': row.aspecto_nombre,
+                'peso': peso,
+                'calificacion': calificacion,
+                'ponderado': round(peso * calificacion, 2)
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'evaluacion': {
+                    'id': evaluacion.id,
+                    'mes': evaluacion.mes,
+                    'anio': evaluacion.anio,
+                    'fecha_evaluacion': evaluacion.fecha_evaluacion.strftime('%Y-%m-%d') if evaluacion.fecha_evaluacion else None,
+                    'calificacion_final': float(evaluacion.calificacion_final),
+                    'porcentaje_final': float(evaluacion.porcentaje_final),
+                    'comentario': evaluacion.comentario,
+                    'faltas': evaluacion.faltas,
+                    'incapacidad': evaluacion.incapacidad
+                },
+                'empleado': {
+                    'id': empleado.id,
+                    'nombre': empleado.nombre,
+                    'puesto_id': empleado.puesto_id,
+                    'puesto_nombre': empleado.puesto_nombre,
+                    'estacion_id': empleado.estacion_id,
+                    'estacion_nombre': empleado.estacion_nombre
+                },
+                'detalles': detalles
+            }
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Error al obtener el detalle de la evaluación individual',
+            'error': str(e)
+        }), 500
+
 @evaluacion_bp.route('/getEvaluacionesPuesto/<int:usuario_id>/<int:puesto_id>', methods=['GET'])
 def get_evaluaciones_puesto(usuario_id, puesto_id):
     try:
