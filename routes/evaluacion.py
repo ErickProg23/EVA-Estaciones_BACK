@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from models import db, Usuario, Empleado, Puesto, Estacion, Aspecto, PuestoAspecto, Evaluacion, Detalle_Evaluacion
 from collections import defaultdict
 from datetime import datetime
+from sqlalchemy import text
 
 evaluacion_bp = Blueprint('evaluacion', __name__)
 
@@ -209,23 +210,56 @@ def finalizar_evaluacion_puesto():
                 'message': 'No se pueden finalizar evaluaciones marcadas como borrador'
             }), 400
         
-        # Establecer fecha de evaluación en backend (hora del servidor)
-        fecha_evaluacion = datetime.now()
+        fecha_evaluacion = _now_tijuana()
+        tzinfo = fecha_evaluacion.tzinfo
 
-        # Solo permitir del día 1 al 15
-        if fecha_evaluacion.day > 15:
-            return jsonify({
-                'success': False,
-                'message': 'La evaluación solo puede realizarse del día 1 al 15 de cada mes.'
-            }), 400
+        mes_payload = data.get('mes')
+        anio_payload = data.get('anio')
+        is_late = (mes_payload is not None and anio_payload is not None)
 
-        # Siempre evaluar el mes anterior
-        if fecha_evaluacion.month == 1:
-            mes = 12
-            anio = fecha_evaluacion.year - 1
-        else:
-            mes = fecha_evaluacion.month - 1
+        if not is_late:
+            start, end = _last_friday_window(fecha_evaluacion.year, fecha_evaluacion.month, tzinfo=tzinfo)
+
+            if not (start <= fecha_evaluacion <= end):
+                return jsonify({
+                    'success': False,
+                    'message': 'La evaluación solo puede realizarse el último viernes de cada mes.'
+                }), 400
+
+            mes = fecha_evaluacion.month
             anio = fecha_evaluacion.year
+
+        else:
+            mes = int(mes_payload)
+            anio = int(anio_payload)
+
+            usuario = Usuario.query.get(usuario_id)
+            if not usuario or not usuario.estacion_id:
+                return jsonify({
+                    'success': False,
+                    'message': 'Usuario sin estación asignada'
+                }), 400
+
+            estacion_id = usuario.estacion_id
+
+            lib = db.session.execute(
+                text("""
+                    SELECT 1
+                    FROM liberaciones_tardias
+                    WHERE estacion_id = :estacion_id
+                    AND mes = :mes
+                    AND anio = :anio
+                    AND enabled = 1
+                    LIMIT 1
+                """),
+                {"estacion_id": estacion_id, "mes": mes, "anio": anio}
+            ).first()
+
+            if not lib:
+                return jsonify({
+                    'success': False,
+                    'message': f'No hay liberación tardía activa para {mes}/{anio}.'
+                }), 400
         
         # Verificar que el puesto existe
         puesto = Puesto.query.get(puesto_id)
