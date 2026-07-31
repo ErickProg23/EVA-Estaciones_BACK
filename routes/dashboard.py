@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify
 from models import db, Usuario, Empleado, Puesto, Evaluacion, Estacion
 from datetime import datetime, timedelta
-from sqlalchemy import func, and_, extract
+from sqlalchemy import func, and_, extract, text
+import calendar
+from zoneinfo import ZoneInfo
+
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -350,18 +353,61 @@ def get_alertas(usuario_id):
         usuario = Usuario.query.get(usuario_id)
         if not usuario:
             return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
         estacion_id = usuario.estacion_id
         if not estacion_id:
             return jsonify({"success": False, "error": "Usuario no tiene estación asignada"}), 400
 
-        now = datetime.now()
-        inicio_mes = datetime(now.year, now.month, 1)
-        deadline = inicio_mes + timedelta(days=14)
+        now = _now_tijuana()
+        tzinfo = now.tzinfo
         mes_actual = now.month
         anio_actual = now.year
 
-        if now <= deadline:
-            return jsonify({"success": True, "message": "Aún dentro del periodo de evaluación", "data": {"deadline": deadline.strftime('%Y-%m-%d'), "mes": mes_actual, "anio": anio_actual, "atrasos": {"puestos": [], "empleados": []}}}), 200
+        lib_row = db.session.execute(
+            text("""
+                SELECT mes, anio
+                FROM liberaciones_tardias
+                WHERE estacion_id = :estacion_id
+                AND enabled = 1
+                ORDER BY updated_at DESC
+                LIMIT 1
+            """),
+            {"estacion_id": estacion_id}
+        ).mappings().first()
+
+        liberacion_tardia = {
+            "enabled": bool(lib_row),
+            "mes": int(lib_row["mes"]) if lib_row else None,
+            "anio": int(lib_row["anio"]) if lib_row else None
+        }
+
+        start, deadline = _last_friday_window(anio_actual, mes_actual, tzinfo=tzinfo)
+
+        if now < start:
+            return jsonify({
+                "success": True,
+                "message": "Aún no inicia el día de evaluación (último viernes del mes)",
+                "data": {
+                    "deadline": deadline.strftime('%Y-%m-%d %H:%M:%S'),
+                    "mes": mes_actual,
+                    "anio": anio_actual,
+                    "liberacion_tardia": liberacion_tardia,
+                    "atrasos": {"puestos": [], "empleados": []}
+                }
+            }), 200
+
+        if start <= now <= deadline:
+            return jsonify({
+                "success": True,
+                "message": "Hoy es el día de evaluación",
+                "data": {
+                    "deadline": deadline.strftime('%Y-%m-%d %H:%M:%S'),
+                    "mes": mes_actual,
+                    "anio": anio_actual,
+                    "liberacion_tardia": liberacion_tardia,
+                    "atrasos": {"puestos": [], "empleados": []}
+                }
+            }), 200
 
         empleados = db.session.query(
             Empleado.id,
@@ -399,25 +445,38 @@ def get_alertas(usuario_id):
                 cont_por_puesto[key] = cont_por_puesto.get(key, 0) + 1
 
         atrasados_puestos = [
-            {
-                "puesto_id": k[0],
-                "puesto_nombre": k[1],
-                "pendientes": v
-            }
+            {"puesto_id": k[0], "puesto_nombre": k[1], "pendientes": v}
             for k, v in cont_por_puesto.items()
         ]
 
         return jsonify({
             "success": True,
             "data": {
-                "deadline": deadline.strftime('%Y-%m-%d'),
+                "deadline": deadline.strftime('%Y-%m-%d %H:%M:%S'),
                 "mes": mes_actual,
                 "anio": anio_actual,
+                "liberacion_tardia": liberacion_tardia,
                 "atrasos": {
-                    "puestos": atrasados_puestos
+                    "puestos": atrasados_puestos,
+                    "empleados": atrasados_empleados
                 }
             }
         }), 200
+
     except Exception as e:
         return jsonify({"success": False, "error": f"Error al obtener alertas: {str(e)}"}), 500
 
+def _now_tijuana():
+    if ZoneInfo:
+        return datetime.now(ZoneInfo("America/Tijuana"))
+    return datetime.now()
+
+def _last_friday_window(year: int, month: int, tzinfo=None):
+    last_day = calendar.monthrange(year, month)[1]
+    d = datetime(year, month, last_day, 0, 0, 0, tzinfo=tzinfo)
+    while d.weekday() != 4:  # Monday=0 ... Friday=4
+        d -= timedelta(days=1)
+
+    start = d.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = d.replace(hour=23, minute=59, second=59, microsecond=0)
+    return start, end    
